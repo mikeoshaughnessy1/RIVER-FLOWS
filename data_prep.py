@@ -23,9 +23,9 @@ def read_csv(file_bytes: bytes) -> pd.DataFrame:
         raise ValueError(f'That file could not be read as a CSV ({type(e).__name__}).') from e
 
 
-def data_key(daily_bytes: bytes, sites_bytes: bytes) -> str:
+def data_key(*files: bytes) -> str:
     """Cache key for the loaded data. Hashes every byte, so an edit anywhere shows new numbers."""
-    return hashlib.md5(daily_bytes + b'|' + sites_bytes).hexdigest()
+    return hashlib.md5(b'|'.join(files)).hexdigest()
 
 
 def clean_sites(raw: pd.DataFrame, notes: list) -> pd.DataFrame:
@@ -128,6 +128,15 @@ def build(daily_raw: pd.DataFrame, sites_raw: pd.DataFrame):
     for c in ('water_year', 'year', 'month'):
         df[c] = df[c].astype('int16')
     return df, sites, notes
+
+
+def overlay(old: pd.DataFrame, fresh: pd.DataFrame) -> pd.DataFrame:
+    """Lay recent rows over the snapshot without reformatting 1.5M rows: same gauge and day is
+    replaced, everything else stays. Both tables come straight from read_csv."""
+    tail = old['date'] >= fresh['date'].min()
+    keys = set(zip(fresh['site_no'], fresh['date']))
+    drop = [k in keys for k in zip(old.loc[tail, 'site_no'], old.loc[tail, 'date'])]
+    return pd.concat([old.drop(index=old.index[tail][drop]), fresh], ignore_index=True)
 
 
 def merge_refresh(old_raw: pd.DataFrame, fresh: pd.DataFrame) -> pd.DataFrame:

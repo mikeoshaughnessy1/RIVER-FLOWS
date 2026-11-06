@@ -26,11 +26,14 @@ T.inject()
 # ---------------- data ----------------
 
 @st.cache_resource(show_spinner=False, max_entries=2)
-def build_cached(daily_bytes: bytes, sites_bytes: bytes):
+def build_cached(daily_bytes: bytes, sites_bytes: bytes, recent_bytes: bytes):
     # Keyed on file CONTENTS, so changed data never shows old numbers. A shared resource, not
     # cache_data: that hands every rerun a new 100 MB copy, and analytics._groups kept a split
     # of each copy. Nothing may change this table in place.
-    return dp.build(dp.read_csv(daily_bytes), dp.read_csv(sites_bytes))
+    daily = dp.read_csv(daily_bytes)
+    if recent_bytes:
+        daily = dp.overlay(daily, dp.read_csv(recent_bytes))
+    return dp.build(daily, dp.read_csv(sites_bytes))
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -87,7 +90,21 @@ def snapshot_info():
 SNAP = snapshot_info()
 
 
+def recent_file():
+    """(bytes, downloaded) of the daily job's file. Empty if it isn't there or can't be read."""
+    import json
+    try:
+        return ((ROOT / 'data' / 'recent.csv.gz').read_bytes(),
+                json.loads((ROOT / 'data' / 'recent.json').read_text())['downloaded'])
+    except (OSError, ValueError, KeyError):
+        return b'', None
+
+
 def snapshot_origin():
+    got = recent_file()[1]
+    if got:
+        t = pd.Timestamp(got)
+        return f'updated from USGS {T.date(t)} at {t:%-I:%M %p} MT'
     d = SNAP.get('downloaded')
     return f'snapshot downloaded {T.date(d)}' if d else 'bundled snapshot'
 
@@ -101,6 +118,7 @@ ss = st.session_state
 if 'daily_bytes' not in ss:
     ss.daily_bytes = (ROOT / 'data' / 'daily_values.csv.gz').read_bytes()
     ss.sites_bytes = (ROOT / 'data' / 'sites.csv').read_bytes()
+    ss.recent_bytes = recent_file()[0]
     ss.daily_src = 'Snapshot in data/daily_values.csv.gz'
     ss.sites_src = 'data/sites.csv'
     ss.data_origin = snapshot_origin()
@@ -124,21 +142,21 @@ with st.container(key='nav'):
     page = st.radio('Section', PAGES, key='page', horizontal=True, label_visibility='collapsed')
 
 try:
-    df, sites, notes = build_cached(ss.daily_bytes, ss.sites_bytes)
+    df, sites, notes = build_cached(ss.daily_bytes, ss.sites_bytes, ss.recent_bytes)
 except ValueError as e:
     T.masthead('Montana River Report', 'The data could not be loaded',
                'The file that was loaded is missing something the app needs. Nothing below is shown '
                'until the data is fixed, so no numbers are guessed.')
     T.note(str(e), error=True)
     if st.button('Restore the original data', type='primary'):
-        for k in ('daily_bytes', 'sites_bytes', 'last_upload'):
+        for k in ('daily_bytes', 'sites_bytes', 'recent_bytes', 'last_upload'):
             ss.pop(k, None)
         ss.upload_n = ss.get('upload_n', 0) + 1      # new key empties the uploader, or it re-applies the bad file
         st.rerun()
     st.stop()
 
 LAST = df['date'].max()
-DATA_KEY = dp.data_key(ss.daily_bytes, ss.sites_bytes)
+DATA_KEY = dp.data_key(ss.daily_bytes, ss.sites_bytes, ss.recent_bytes)
 labels = sites.set_index('site_no')['label'].to_dict()
 present = set(df['site_no'].unique())
 labels = {s: labels.get(s, s) for s in df['site_no'].cat.categories if s in present}
@@ -867,10 +885,11 @@ else:
         try:
             with st.spinner('Asking USGS'):
                 fresh = fetch_recent(config.REFRESH_DAYS, secret('USGS_API_KEY'), str(pd.Timestamp.now().floor('h')))
-            merged = dp.merge_refresh(dp.read_csv(ss.daily_bytes), fresh)
+            merged = dp.merge_refresh(dp.read_csv(ss.daily_bytes), fresh)      # covers everything in recent_bytes
             buf = io.StringIO()
             merged.to_csv(buf, index=False)
             ss.daily_bytes = gzip.compress(buf.getvalue().encode(), 1)     # 10x less memory per visitor
+            ss.recent_bytes = b''
             now = pd.Timestamp.now(tz='America/Denver')
             ss.daily_src = 'Snapshot + USGS refresh'
             ss.data_origin = f'refreshed from USGS {T.date(now)} at {now:%-I:%M %p} MT'
@@ -897,11 +916,13 @@ else:
                 st.rerun()
             else:
                 ss.daily_bytes, ss.daily_src, ss.last_upload = up.getvalue(), f'Uploaded {up.name}', h
+                ss.recent_bytes = b''
                 ss.data_origin = f'uploaded file {up.name}'
                 st.rerun()
     if st.button('Restore original data'):
         ss.daily_bytes = (ROOT / 'data' / 'daily_values.csv.gz').read_bytes()
         ss.sites_bytes = (ROOT / 'data' / 'sites.csv').read_bytes()
+        ss.recent_bytes = recent_file()[0]
         ss.daily_src, ss.sites_src, ss.last_upload = 'Snapshot in data/daily_values.csv.gz', 'data/sites.csv', None
         ss.pop('csv_ready', None)
         ss.upload_n = ss.get('upload_n', 0) + 1

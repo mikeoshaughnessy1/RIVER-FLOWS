@@ -20,7 +20,7 @@ def test_every_page_opens(app, page):
 
 def test_region_with_no_gauges_is_a_message_not_a_crash():
     at = AppTest.from_file(APP, default_timeout=120).run()
-    at.session_state['daily_bytes'] = SHORT       # one Southwest gauge, so Western has none
+    at.session_state['daily_bytes'], at.session_state['recent_bytes'] = SHORT, b''   # one Southwest gauge, Western has none
     at.run()
     at.selectbox(key='region').set_value('Western').run()
     for page in ['Map', 'Today', 'History', 'Water temp']:
@@ -30,7 +30,7 @@ def test_region_with_no_gauges_is_a_message_not_a_crash():
 
 def test_date_outside_new_data_is_pulled_back_in_range():
     at = AppTest.from_file(APP, default_timeout=120).run()
-    at.session_state['daily_bytes'] = SHORT       # the remembered map date is now past the newest reading
+    at.session_state['daily_bytes'], at.session_state['recent_bytes'] = SHORT, b''   # remembered date is now past the data
     at.run()
     assert not at.exception
 

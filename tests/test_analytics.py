@@ -190,3 +190,10 @@ def test_unreadable_upload_is_a_clear_error(junk):
 def test_daily_file_with_no_usable_rows_is_a_clear_error():
     with pytest.raises(ValueError, match='no rows'):
         make([('00000001', 'not a date', 1, 'nan')])
+
+
+def test_overlay_replaces_the_same_day_and_keeps_the_rest():
+    old = pd.DataFrame({'site_no': ['1', '1', '2'], 'date': ['2026-01-01', '2026-01-02', '2026-01-02'], 'flow_cfs': ['5', '6', '7']})
+    fresh = pd.DataFrame({'site_no': ['1', '1'], 'date': ['2026-01-02', '2026-01-03'], 'flow_cfs': ['60', '70']})
+    out = dp.overlay(old, fresh).sort_values(['site_no', 'date'])
+    assert out['flow_cfs'].tolist() == ['5', '60', '70', '7']

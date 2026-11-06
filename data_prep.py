@@ -3,9 +3,7 @@
 Every problem found is written to `notes` (shown on the Data page) instead of crashing.
 """
 from __future__ import annotations
-import hashlib
 import io
-import zlib
 import pandas as pd
 import config
 
@@ -16,16 +14,8 @@ def note(notes: list, level: str, msg: str):
 
 def read_csv(file_bytes: bytes) -> pd.DataFrame:
     gz = file_bytes[:2] == b'\x1f\x8b'          # gzip magic number
-    try:
-        return pd.read_csv(io.BytesIO(file_bytes), dtype=str, keep_default_na=True,
-                           compression='gzip' if gz else None)
-    except (OSError, EOFError, zlib.error, ValueError) as e:     # ValueError covers empty and undecodable files
-        raise ValueError(f'That file could not be read as a CSV ({type(e).__name__}).') from e
-
-
-def data_key(daily_bytes: bytes, sites_bytes: bytes) -> str:
-    """Cache key for the loaded data. Hashes every byte, so an edit anywhere shows new numbers."""
-    return hashlib.md5(daily_bytes + b'|' + sites_bytes).hexdigest()
+    return pd.read_csv(io.BytesIO(file_bytes), dtype=str, keep_default_na=True,
+                       compression='gzip' if gz else None)
 
 
 def clean_sites(raw: pd.DataFrame, notes: list) -> pd.DataFrame:
@@ -112,8 +102,6 @@ def build(daily_raw: pd.DataFrame, sites_raw: pd.DataFrame):
     notes: list = []
     sites = clean_sites(sites_raw, notes)
     daily = clean_daily(daily_raw, notes)
-    if daily.empty:
-        raise ValueError('The daily values file has no rows with a readable date.')
     df = check_merge(daily, sites, notes)
     df['water_year'] = df['date'].dt.year + (df['date'].dt.month >= 10).astype(int)
     df['year'] = df['date'].dt.year

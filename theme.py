@@ -14,7 +14,7 @@ RULE = '#dcd5c6'       # hairlines
 PINE = '#2e5140'       # interface accent: nav, buttons, focus
 RIVER, RIVER_LIGHT, BAND = '#1d5c63', '#8fb5b3', '#d6e3df'
 STONE = '#8c8577'
-HOT, COLD, HOT_BAND = '#b4532a', '#3f6e9a', '#f3dfd3'
+HOT, COLD = '#b4532a', '#3f6e9a'
 RADIUS = '6px'
 
 CSS = f"""
@@ -27,11 +27,11 @@ label, input, textarea, button, select {{ font-family: 'Inter', system-ui, sans-
 [data-testid=stIconMaterial] {{ font-family: 'Material Symbols Rounded' !important; }}
 h1, h2, h3, .rr-serif {{ font-family: 'Fraunces', Georgia, serif !important; color: {INK}; letter-spacing: -0.01em; }}
 h1 *, h2 *, h3 * {{ font-family: inherit !important; }}
-.block-container {{ padding-top: 1rem; padding-bottom: 3rem; max-width: 1200px; }}
+.block-container {{ padding-top: 3.4rem; padding-bottom: 3rem; max-width: 1180px; }}
 
 /* Focus: always visible for keyboard users */
-:focus-visible, button:focus-visible, [role=radio]:focus-visible, input:focus-visible {{ outline: 2px solid {PINE} !important; outline-offset: 2px !important; }}
-.stSelectbox input:focus-visible, .stDateInput input:focus-visible {{ outline: none !important; }}   /* the box itself shows focus */
+:focus-visible, button:focus-visible, [role=radio]:focus-visible, input:focus-visible,
+[data-baseweb=select] *:focus-visible {{ outline: 2px solid {PINE} !important; outline-offset: 2px !important; }}
 a {{ color: {RIVER}; }}
 
 /* Inputs and buttons share one look */
@@ -41,30 +41,25 @@ a {{ color: {RIVER}; }}
 .stButton > button:hover, .stDownloadButton > button:hover {{ border-color: {PINE}; color: {PINE}; }}
 [data-testid=stBaseButton-primary] {{ background: {PINE} !important; border-color: {PINE} !important; color: #fff !important; }}
 [data-testid=stBaseButton-primary]:hover {{ background: #24412f !important; color: #fff !important; }}
+[data-baseweb=select] > div, [data-baseweb=input], .stDateInput input, [data-testid=stFileUploaderDropzone] {{
+  border-radius: {RADIUS} !important; background: {SURFACE} !important; border-color: {RULE} !important; }}
 [data-testid=stWidgetLabel] p {{ font-size: .8rem; font-weight: 600; color: {INK2}; letter-spacing: .01em; }}
 [data-testid=stExpander] details {{ border-radius: {RADIUS}; border-color: {RULE}; background: {SURFACE}; }}
-[data-testid=stCaptionContainer], [data-testid=stCaptionContainer] * {{ color: {MUTED}; opacity: 1; }}
+[data-testid=stCaptionContainer] {{ color: {MUTED}; }}
 
-/* Top bar and section tabs: the same on every screen, nothing hidden behind a drawer */
-header[data-testid=stHeader] {{ background: transparent; height: 0; }}
-.rr-brand {{ font: 650 1.45rem/1.15 'Fraunces', serif; color: {INK}; }}
-.rr-brand-sub {{ color: {MUTED}; font-size: .8rem; }}
-.st-key-nav {{ border-bottom: 1px solid {RULE}; margin-bottom: .5rem; overflow-x: auto; scrollbar-width: none; }}
-.st-key-nav [role=radiogroup] {{ flex-wrap: nowrap; gap: 1.5rem; }}
-.st-key-nav [data-testid=stRadioOption] {{ padding: .4rem 0 .5rem; border-bottom: 2px solid transparent; margin-bottom: -1px;
-  cursor: pointer; white-space: nowrap; }}
-.st-key-nav [data-testid=stRadioOption] > div > div:first-child:not([data-testid=stMarkdownContainer]) {{ display: none; }}
-.st-key-nav [data-testid=stRadioOption] p {{ font-size: .95rem; font-weight: 500; color: {INK2}; }}
-.st-key-nav [data-testid=stRadioOption]:hover p {{ color: {PINE}; }}
-.st-key-nav [data-testid=stRadioOption][data-selected=true] {{ border-bottom-color: {PINE}; }}
-.st-key-nav [data-testid=stRadioOption][data-selected=true] p {{ color: {PINE}; font-weight: 600; }}
-.st-key-nav [data-testid=stRadioOption][data-focus-visible=true] {{ outline: 2px solid {PINE}; outline-offset: -2px; border-radius: 3px; }}
+/* Sidebar */
+section[data-testid=stSidebar] {{ background: #ede8dd; border-right: 1px solid {RULE}; }}
+section[data-testid=stSidebar] [data-testid=stRadio] label {{ padding: .28rem 0; }}
+section[data-testid=stSidebar] [data-testid=stRadio] label p {{ font-size: .95rem; }}
+section[data-testid=stSidebar] [data-testid=stRadioOption][data-selected=true] p {{ font-weight: 600; color: {PINE}; }}
+.rr-brand {{ font: 650 1.35rem 'Fraunces', serif; color: {INK}; }}
+.rr-brand-sub {{ color: {MUTED}; font-size: .8rem; margin-bottom: .9rem; }}
 
 /* Masthead and status line */
 .rr-mast {{ padding-bottom: .55rem; margin-bottom: .2rem; }}
 .rr-mast .kicker {{ font: 600 .72rem 'Inter'; letter-spacing: .14em; text-transform: uppercase; color: {PINE}; }}
-.rr-mast .title {{ font: 650 2.25rem/1.08 'Fraunces', serif; color: {INK}; margin: .15rem 0 .3rem; padding: 0; }}
-.rr-mast .sub {{ color: {INK2}; font-size: .95rem; max-width: 88ch; line-height: 1.45; }}
+.rr-mast .title {{ font: 650 2.25rem/1.08 'Fraunces', serif; color: {INK}; margin: .2rem 0 .3rem; }}
+.rr-mast .sub {{ color: {INK2}; font-size: .95rem; max-width: 62ch; line-height: 1.5; }}
 .rr-status {{ display: flex; flex-wrap: wrap; gap: .35rem 1.2rem; border-top: 2px solid {INK}; border-bottom: 1px solid {RULE};
   padding: .5rem 0; margin: .3rem 0 1.1rem; font-size: .82rem; color: {INK2}; }}
 .rr-status b {{ color: {INK}; font-weight: 600; }}
@@ -73,8 +68,9 @@ header[data-testid=stHeader] {{ background: transparent; height: 0; }}
   vertical-align: middle; background: {PINE}; }}
 .rr-dot.stale {{ background: #c9a227; }}
 
-.rr-section {{ font: 650 1.15rem/1.25 'Fraunces', serif !important; color: {INK} !important; border-top: 1px solid {RULE};
-              padding: .7rem 0 0; margin: 1.6rem 0 .15rem; }}
+.rr-figure {{ font: 600 .72rem 'Inter'; letter-spacing: .12em; text-transform: uppercase; color: {MUTED};
+             border-top: 1px solid {RULE}; padding-top: .6rem; margin: 1.6rem 0 .25rem; }}
+.rr-figure b {{ color: {INK}; }}
 .rr-cap {{ color: {MUTED}; font-size: .86rem; margin: -.1rem 0 .7rem; line-height: 1.45; }}
 
 /* Tables scroll sideways on a phone instead of squeezing */
@@ -90,8 +86,7 @@ header[data-testid=stHeader] {{ background: transparent; height: 0; }}
 .rr-table tr.river td {{ padding-top: .95rem; font: 600 .72rem 'Inter'; letter-spacing: .1em;
                          text-transform: uppercase; color: {PINE}; border-bottom: none; }}
 .rr-pill {{ display: inline-block; padding: 0 .45rem; border-radius: 999px; font-size: .74rem; background: {BAND}; color: {RIVER}; white-space: nowrap; }}
-.rr-pill.low {{ background: #f6e1da; color: #84211f; }}
-.rr-pill.high {{ background: #dce8f4; color: #17477f; }}
+.rr-pill.hot {{ background: #f3dfd3; color: #8f3a17; }}
 .rr-pill.warn {{ background: #efe6cf; color: #6d5410; }}
 
 .rr-stats {{ display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid {INK}; border-bottom: 1px solid {RULE}; margin: .2rem 0 .4rem; }}
@@ -107,11 +102,8 @@ header[data-testid=stHeader] {{ background: transparent; height: 0; }}
 .rr-note.err {{ border-color: #a51d2d; background: #f6e3df; }}
 
 /* Map legend and gauge card */
-.st-key-mapbox {{ border: 1px solid {RULE}; border-radius: {RADIUS}; overflow: hidden; background: {SURFACE}; }}
-.st-key-mapbox [data-testid=stElementContainer] {{ margin: 0; }}
-.st-key-mapbox [data-testid=stMarkdownContainer] {{ margin-bottom: 0; }}
-.rr-legend {{ display: flex; flex-wrap: wrap; align-items: center; gap: .45rem 1.4rem; padding: .65rem .85rem;
-  border-bottom: 1px solid {RULE}; font-size: .84rem; }}
+.rr-legend {{ display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.4rem; padding: .7rem .85rem;
+  background: {SURFACE}; border: 1px solid {RULE}; border-radius: {RADIUS} {RADIUS} 0 0; border-bottom: none; font-size: .84rem; }}
 .rr-legend .what {{ flex: 1 1 260px; color: {INK2}; line-height: 1.4; }}
 .rr-legend .what b {{ color: {INK}; }}
 .rr-legend .ramp {{ flex: 0 1 230px; }}
@@ -121,6 +113,7 @@ header[data-testid=stHeader] {{ background: transparent; height: 0; }}
 .rr-legend .keys {{ display: flex; flex-wrap: wrap; gap: .3rem .9rem; flex: 1 1 100%; }}
 .rr-legend .key {{ white-space: nowrap; color: {INK2}; }}
 .rr-sym {{ display: inline-block; width: 1.1rem; text-align: center; font-weight: 700; }}
+.rr-mapframe {{ border: 1px solid {RULE}; border-top: none; border-radius: 0 0 {RADIUS} {RADIUS}; overflow: hidden; margin-bottom: .3rem; }}
 .rr-card {{ background: {SURFACE}; border: 1px solid {RULE}; border-radius: {RADIUS}; padding: .8rem .95rem; margin: .4rem 0 .6rem; }}
 .rr-card .name {{ font: 650 1.15rem 'Fraunces', serif; color: {INK}; }}
 .rr-card .meta {{ color: {MUTED}; font-size: .8rem; margin-bottom: .45rem; }}
@@ -129,18 +122,11 @@ header[data-testid=stHeader] {{ background: transparent; height: 0; }}
 
 .rr-entry {{ border-top: 1px solid {RULE}; padding: 1rem 0 .4rem; }}
 .rr-entry .q {{ font: italic 500 1.2rem 'Fraunces', serif; color: {INK}; }}
-.rr-entry .scope {{ color: {MUTED}; font-size: .8rem; }}
-.rr-lab {{ font: 600 .68rem 'Inter'; letter-spacing: .12em; text-transform: uppercase; color: {PINE}; margin-top: .6rem; }}
+.rr-entry .lab {{ font: 600 .68rem 'Inter'; letter-spacing: .12em; text-transform: uppercase; color: {PINE}; margin-top: .6rem; }}
 .rr-colophon {{ border-top: 1px solid {RULE}; margin-top: 2.5rem; padding-top: .7rem; color: {MUTED}; font-size: .78rem; line-height: 1.5; }}
 
 @media (max-width: 760px) {{
-  .block-container {{ padding-left: 1rem; padding-right: 1rem; padding-top: 1rem; }}
-  .st-key-nav [role=radiogroup] {{ gap: .8rem; }}
-  .st-key-nav [data-testid=stRadioOption] p {{ font-size: .88rem; }}
-  .st-key-map_mode [role=radiogroup] {{ gap: .5rem; flex-wrap: nowrap; }}
-  .st-key-map_mode p {{ font-size: .88rem; white-space: nowrap; }}
-  .st-key-controls [data-testid=stHorizontalBlock] {{ flex-wrap: wrap; gap: .5rem 1rem; }}
-  .st-key-controls [data-testid=stColumn] {{ flex: 1 1 calc(50% - .5rem) !important; min-width: calc(50% - .5rem) !important; width: auto !important; }}
+  .block-container {{ padding-left: 1rem; padding-right: 1rem; padding-top: 3rem; }}
   .rr-stats {{ grid-template-columns: 1fr 1fr; }}
   .rr-stats > div:nth-child(2) {{ border-right: none; }}
   .rr-stats > div:nth-child(-n+2) {{ border-bottom: 1px solid {RULE}; }}
@@ -175,21 +161,12 @@ def inject():
 
 def masthead(kicker, title, sub):
     st.markdown(f'<div class="rr-mast"><div class="kicker">{esc(kicker)}</div>'
-                f'<h1 class="title">{esc(title)}</h1><div class="sub">{esc(sub)}</div></div>',
+                f'<div class="title">{esc(title)}</div><div class="sub">{esc(sub)}</div></div>',
                 unsafe_allow_html=True)
 
 
-def brand(name, sub):
-    st.markdown(f'<div class="rr-brand">{esc(name)}</div><div class="rr-brand-sub">{esc(sub)}</div>',
-                unsafe_allow_html=True)
-
-
-def label(text):
-    st.markdown(f'<div class="rr-lab">{esc(text)}</div>', unsafe_allow_html=True)
-
-
-def section(title, caption=None):
-    st.markdown(f'<h2 class="rr-section">{esc(title)}</h2>', unsafe_allow_html=True)
+def figure(n, title, caption=None):
+    st.markdown(f'<div class="rr-figure">Fig. {n} &nbsp;<b>{esc(title)}</b></div>', unsafe_allow_html=True)
     if caption:
         st.markdown(f'<div class="rr-cap">{esc(caption)}</div>', unsafe_allow_html=True)
 
@@ -218,7 +195,7 @@ def status(parts, stale=False):
     dot = f'<span class="rr-dot{" stale" if stale else ""}" aria-hidden="true"></span>'
     if bits:
         bits[0] = bits[0].replace('<span>', f'<span>{dot}', 1).replace('<span class="">', f'<span>{dot}', 1)
-    st.markdown(f'<div class="rr-status">{"".join(bits)}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="rr-status" role="status">{"".join(bits)}</div>', unsafe_allow_html=True)
 
 
 def date(x, year=True):
@@ -230,7 +207,7 @@ def date(x, year=True):
 
 def table(rows, cols, num=()):
     """rows: list of dicts. cols: list of (key, header). A row with '_group' renders as a group head."""
-    head = ''.join(f'<th scope="col" style="text-align:{"right" if k in num else "left"}">{esc(h)}</th>' for k, h in cols)
+    head = ''.join(f'<th style="text-align:{"right" if k in num else "left"}">{esc(h)}</th>' for k, h in cols)
     body = ''
     for r in rows:
         if '_group' in r:
@@ -239,7 +216,7 @@ def table(rows, cols, num=()):
         body += '<tr>' + ''.join(
             f'<td class="{"num" if k in num else ("nowrap" if str(k).startswith("dir") else "")}">{r.get(k, "") if str(k).endswith("_html") else esc(r.get(k, ""))}</td>'
             for k, _ in cols) + '</tr>'
-    st.markdown(f'<div class="rr-scroll" tabindex="0" role="region" aria-label="Scrollable table"><table class="rr-table"><thead><tr>{head}</tr></thead>'
+    st.markdown(f'<div class="rr-scroll"><table class="rr-table"><thead><tr>{head}</tr></thead>'
                 f'<tbody>{body}</tbody></table></div>', unsafe_allow_html=True)
 
 
@@ -253,17 +230,8 @@ def cfs(x):
 
 # ---- Map: diverging red (dropping / below normal) to blue (rising / above normal) ----
 # Mid-gray neutral instead of a pale one so steady rivers stay visible on the light basemap.
-# Checked for red-green colorblindness: neighbors stay 11+ apart (delta E), all 3:1 on the page.
-DROP, STEADY, RISE = '#9b1c2e', '#8a8983', '#17509e'
-DIVERGING = [(0.0, DROP), (0.25, '#d9622b'), (0.5, STEADY), (0.75, '#4a93d6'), (1.0, RISE)]
+DIVERGING = [(0.0, '#a51d2d'), (0.25, '#dd6650'), (0.5, '#9e998e'), (0.75, '#5b97cf'), (1.0, '#1c5aa6')]
 OFF_SEASON = '#cfc9bc'
-
-
-# The map won't start until its style loads, so the app fetches CARTO's style itself and hands
-# it over. A failed tile then only loses the background. BLANK_MAP is for when the style can't load.
-STYLE_URL = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
-BLANK_MAP = {'version': 8, 'sources': {}, 'glyphs': 'https://tiles.basemaps.cartocdn.com/fonts/{fontstack}/{range}.pbf',
-             'layers': [{'id': 'paper', 'type': 'background', 'paint': {'background-color': '#f6f6f3'}}]}
 
 
 def ramp_css():

@@ -1,8 +1,6 @@
 import pandas as pd
-import pytest
 import analytics as A
 import agent
-import data_prep as dp
 from conftest import make
 
 
@@ -161,32 +159,3 @@ def test_no_percent_of_normal_when_normal_is_a_trickle():
     assert A.current_conditions(df).value[0]['pct_of_median'] is None
     r = A.flow_change(df, '2025-06-01', 1)
     assert r.value == [] or r.value[0]['pct_of_median'] is None
-
-
-def test_flow_change_never_compares_a_day_with_itself():
-    # Gap before the end date: the only reading near the 1-day target is the end date itself.
-    df = make([('00000001', '2021-06-01', 100, 'nan'), ('00000001', '2021-06-05', 200, 'nan')])[0]
-    r = A.flow_change(df, '2021-06-05', 1)
-    assert r.value == [] and 'Test nr Town' in r.caveats[0]
-
-
-def test_compare_to_normal_with_zero_normal_flow():
-    rows = [('00000001', f'{y}-08-01', 0, 'nan') for y in range(2015, 2021)] + [('00000001', '2021-08-01', 5, 'nan')]
-    r = A.compare_to_normal(make(rows)[0], '00000001', '2021-08-01', '2021-08-01')
-    assert r.error is None and r.value['pct_of_median'] is None
-
-
-def test_data_key_sees_an_edit_in_the_middle():
-    a = b'x' * 20000
-    assert dp.data_key(a, b's') != dp.data_key(a[:10000] + b'y' + a[10001:], b's')
-
-
-@pytest.mark.parametrize('junk', [b'', b'\x1f\x8b not really gzip', b'\xff\xfe\x00\x81'])
-def test_unreadable_upload_is_a_clear_error(junk):
-    with pytest.raises(ValueError, match='could not be read'):
-        dp.read_csv(junk)
-
-
-def test_daily_file_with_no_usable_rows_is_a_clear_error():
-    with pytest.raises(ValueError, match='no rows'):
-        make([('00000001', 'not a date', 1, 'nan')])

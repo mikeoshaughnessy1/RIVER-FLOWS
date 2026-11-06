@@ -139,6 +139,15 @@ def overlay(old: pd.DataFrame, fresh: pd.DataFrame) -> pd.DataFrame:
     return pd.concat([old.drop(index=old.index[tail][drop]), fresh], ignore_index=True)
 
 
+def refresh_start(snapshot_downloaded, today) -> str:
+    """First day to ask USGS for: the last REFRESH_DAYS, or the day the snapshot was downloaded if
+    that is earlier. The recent file is replaced whole, so it must reach back to the snapshot's end."""
+    start = pd.Timestamp(today) - pd.Timedelta(days=config.REFRESH_DAYS)
+    if snapshot_downloaded:
+        start = min(start, pd.Timestamp(snapshot_downloaded))
+    return start.date().isoformat()
+
+
 def merge_refresh(old_raw: pd.DataFrame, fresh: pd.DataFrame) -> pd.DataFrame:
     """Lay freshly downloaded rows over the snapshot (recent provisional values get revised)."""
     old = old_raw.copy()

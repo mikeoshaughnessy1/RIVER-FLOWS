@@ -38,8 +38,7 @@ def build_cached(daily_bytes: bytes, sites_bytes: bytes, recent_bytes: bytes):
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def fetch_recent(days: int, api_key: str | None, _salt: str):
-    start = (pd.Timestamp.today() - pd.Timedelta(days=days)).date().isoformat()
+def fetch_recent(start: str, api_key: str | None, _salt: str):
     return usgs.fetch_daily(list(config.SITES), start, None, api_key)
 
 
@@ -924,13 +923,14 @@ else:
                    f"{T.date(SNAP['downloaded']) if SNAP.get('downloaded') else 'date unknown'}. {SNAP.get('note', '')}")
 
     T.section('Get the latest from USGS',
-             f'Pulls the last {config.REFRESH_DAYS} days from the USGS Water Data API and lays it over the '
-             'snapshot (USGS revises recent values).')
+             f'Pulls the last {config.REFRESH_DAYS} days, and every day since the snapshot, from the USGS '
+             'Water Data API and lays it over the snapshot (USGS revises recent values).')
     c1, c2 = st.columns([1, 2])
     if c1.button('Refresh from USGS', type='primary'):
         try:
             with st.spinner('Asking USGS'):
-                fresh = fetch_recent(config.REFRESH_DAYS, secret('USGS_API_KEY'), str(pd.Timestamp.now().floor('h')))
+                start = dp.refresh_start(SNAP.get('downloaded'), pd.Timestamp.today().date())
+                fresh = fetch_recent(start, secret('USGS_API_KEY'), str(pd.Timestamp.now().floor('h')))
             merged = dp.merge_refresh(dp.read_csv(ss.daily_bytes), fresh)      # covers everything in recent_bytes
             buf = io.StringIO()
             merged.to_csv(buf, index=False)

@@ -54,7 +54,7 @@ Every page shows the newest reading date and where the data came from.
 - `data/snapshot.json`: when the bundled snapshot was downloaded (shown in the app).
 - `data/reaches.geojson`: the river line above each gauge (and a short stretch below the lowest
   gauge on each river), from the USGS river network (NLDI). Rebuild with `scripts/fetch_reaches.py`.
-- The app loads these on open. **Refresh from USGS** pulls the last 120 days from the
+- The app loads these on open. **Refresh from USGS** pulls the last 120 days, and every day since the snapshot, from the
   [USGS Water Data API](https://api.waterdata.usgs.gov/) and lays it over the snapshot.
 - `scripts/fetch_usgs.py` rebuilds the whole file from the API.
 

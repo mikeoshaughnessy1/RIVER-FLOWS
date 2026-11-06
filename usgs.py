@@ -36,6 +36,7 @@ def _pages(params: dict, api_key: str | None, max_pages: int = 60):
         if not nxt:
             return
         url, first = nxt[0], False
+    raise RuntimeError(f'USGS had more than {max_pages} pages, so the download is not complete.')
 
 
 def fetch_daily(site_nos: list[str], start: str, end: str | None = None,

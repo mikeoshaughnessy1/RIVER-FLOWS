@@ -4,6 +4,7 @@ import analytics as A
 import config
 import agent
 import data_prep as dp
+import usgs
 from conftest import make
 
 
@@ -244,3 +245,19 @@ def test_river_summary_takes_temp_from_the_warmest_gauge():
 def test_river_summary_tells_no_normal_apart_from_no_reading():
     assert A.river_summary([{'pct_of_median': None, 'water_temp_max_f': None}]).value == 'No normal for the date.'
     assert A.river_summary([]).value == 'No reading in the last 3 days.'
+
+
+def test_refresh_reaches_back_to_the_snapshot_once_it_is_old():
+    assert dp.refresh_start('2026-11-05', '2026-11-06') == '2026-07-09'     # snapshot is new: the usual window
+    assert dp.refresh_start('2026-11-05', '2027-06-01') == '2026-11-05'     # no gap after the snapshot
+    assert dp.refresh_start(None, '2026-11-06') == '2026-07-09'
+
+
+def test_usgs_download_that_runs_out_of_pages_is_an_error(monkeypatch):
+    class Page:
+        status_code = 200
+        def raise_for_status(self): pass
+        def json(self): return {'features': [], 'links': [{'rel': 'next', 'href': 'http://next'}]}
+    monkeypatch.setattr(usgs.requests, 'get', lambda *a, **k: Page())
+    with pytest.raises(RuntimeError, match='not complete'):
+        list(usgs._pages({}, None, max_pages=2))

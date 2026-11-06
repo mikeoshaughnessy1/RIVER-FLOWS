@@ -49,7 +49,8 @@ HOOT_OWL_DAYS = 3
 DAILY_COLUMNS = ['site_no', 'date', 'flow_cfs', 'temp_mean_c', 'temp_max_c',
                  'flow_status', 'flow_flags', 'temp_status']
 
-# How far back the in-app "Refresh from USGS" pulls (recent values get revised while provisional)
+# How far back a refresh pulls at least (recent values get revised). It goes further back when the
+# snapshot is older than this: see data_prep.refresh_start.
 REFRESH_DAYS = 120
 
 # When someone names only a river, use this gauge (and say so in the answer's scope)

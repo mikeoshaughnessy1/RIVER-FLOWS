@@ -7,7 +7,7 @@ stretch on top of each other made the lower one peek out, so lines looked hatche
 
 Usage: python scripts/fetch_reaches.py   (needs `pip install shapely` to stitch segments)
 """
-import csv, json, sys, pathlib, time
+import json, sys, pathlib, time
 import requests
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import config
@@ -55,6 +55,22 @@ def claim(reaches, area):
     return [r for r in reaches if r['segments']]
 
 
+def drainage_rank():
+    """Drainage area (sq mi) per gauge, for ordering only. A gauge with no published area gets one
+    estimated from its mean flow, using area per cfs on the same river (or all gauges if none)."""
+    import pandas as pd
+    root = pathlib.Path(__file__).resolve().parents[1] / 'data'
+    sites = pd.read_csv(root / 'sites.csv', dtype={'site_no': str}).set_index('site_no')
+    flow = pd.read_csv(root / 'daily_values.csv.gz', dtype={'site_no': str},
+                       usecols=['site_no', 'flow_cfs']).groupby('site_no')['flow_cfs'].mean()
+    area = pd.to_numeric(sites['drain_area'], errors='coerce')
+    ratio = (area / flow.reindex(area.index).clip(lower=0.1)).dropna()
+    by_river = ratio.groupby(sites.loc[ratio.index, 'river']).median()   # runoff per square mile varies by basin
+    est = {s: float(flow.get(s, 0) or 0) * by_river.get(sites.loc[s, 'river'], ratio.median())
+           for s in area[area.isna()].index}
+    return area.fillna(pd.Series(est)).to_dict()
+
+
 def chaikin(pts, rounds=SMOOTH_ROUNDS):
     """Round off corners. The two end points stay put, so neighboring reaches still meet."""
     for _ in range(rounds):
@@ -72,10 +88,8 @@ if __name__ == '__main__':
     from shapely.geometry import MultiLineString
     from shapely.ops import linemerge
     root = pathlib.Path(__file__).resolve().parents[1]
-    with open(root / 'data' / 'sites.csv', newline='') as f:
-        area = {r['site_no']: float(r['drain_area'] or 0) for r in csv.DictReader(f)}
     with ThreadPoolExecutor(6) as pool:
-        reaches = claim([r for rs in pool.map(one, list(config.SITES)) for r in rs], area)
+        reaches = claim([r for rs in pool.map(one, list(config.SITES)) for r in rs], drainage_rank())
     feats = []
     for r in reaches:
         # NHD hands back thousands of short segments; stitch them into continuous lines.

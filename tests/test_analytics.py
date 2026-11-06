@@ -197,3 +197,10 @@ def test_overlay_replaces_the_same_day_and_keeps_the_rest():
     fresh = pd.DataFrame({'site_no': ['1', '1'], 'date': ['2026-01-02', '2026-01-03'], 'flow_cfs': ['60', '70']})
     out = dp.overlay(old, fresh).sort_values(['site_no', 'date'])
     assert out['flow_cfs'].tolist() == ['5', '60', '70', '7']
+
+
+def test_river_note_states_flow_and_temp_facts():
+    assert A.river_note({'pct_of_median': 60, 'water_temp_max_f': 74}).value == \
+        'Running low for the date. Water at 74°F, at or above the 73°F line.'
+    assert A.river_note({'pct_of_median': 100, 'water_temp_max_f': 50}).value == 'Near normal for the date.'
+    assert A.river_note({}).value == ''

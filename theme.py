@@ -61,6 +61,9 @@ header[data-testid=stHeader] {{ background: transparent; height: 0; }}
 .st-key-nav [data-testid=stRadioOption][data-focus-visible=true] {{ outline: 2px solid {PINE}; outline-offset: -2px; border-radius: 3px; }}
 
 /* Masthead and status line */
+.st-key-to_data button {{ border: none !important; background: none !important; min-height: 0; padding: 0; color: {MUTED}; }}
+.st-key-to_data button p {{ font-size: .8rem; text-decoration: underline; }}
+.st-key-to_data {{ margin-top: -.9rem; }}
 .rr-mast {{ padding-bottom: .55rem; margin-bottom: .2rem; }}
 .rr-mast .kicker {{ font: 600 .72rem 'Inter'; letter-spacing: .14em; text-transform: uppercase; color: {PINE}; }}
 .rr-mast .title {{ font: 650 2.25rem/1.08 'Fraunces', serif; color: {INK}; margin: .15rem 0 .3rem; padding: 0; }}
@@ -106,15 +109,19 @@ header[data-testid=stHeader] {{ background: transparent; height: 0; }}
 .rr-note.ok {{ border-color: {PINE}; background: #e3ebe5; }}
 .rr-note.err {{ border-color: #a51d2d; background: #f6e3df; }}
 
-/* Map legend and gauge card */
+/* Map legend and gauge card. The map runs wider than the text but stops short of the screen
+   edge: those side margins are where you scroll the page without grabbing the map. */
+.st-key-mapbox {{ position: relative; width: calc(100vw - 7rem) !important; max-width: 1640px;
+  left: 50%; transform: translateX(-50%); }}
 .st-key-mapbox {{ border: 1px solid {RULE}; border-radius: {RADIUS}; overflow: hidden; background: {SURFACE}; }}
 .st-key-mapbox [data-testid=stElementContainer] {{ margin: 0; }}
 .st-key-mapbox [data-testid=stMarkdownContainer] {{ margin-bottom: 0; }}
-.rr-legend {{ display: flex; flex-wrap: wrap; align-items: center; gap: .45rem 1.4rem; padding: .65rem .85rem;
-  border-bottom: 1px solid {RULE}; font-size: .84rem; }}
-.rr-legend .what {{ flex: 1 1 260px; color: {INK2}; line-height: 1.4; }}
+.rr-legend {{ position: absolute; z-index: 3; top: 3rem; right: .7rem; width: 245px; display: flex; flex-wrap: wrap;
+  gap: .4rem 1rem; padding: .65rem .8rem; background: {SURFACE}; border: 1px solid {RULE}; border-radius: {RADIUS};
+  font-size: .8rem; pointer-events: none; }}
+.rr-legend .what {{ flex: 1 1 100%; color: {INK2}; line-height: 1.4; }}
 .rr-legend .what b {{ color: {INK}; }}
-.rr-legend .ramp {{ flex: 0 1 230px; }}
+.rr-legend .ramp {{ flex: 1 1 100%; }}
 .rr-legend .bar {{ height: 8px; border-radius: 4px; }}
 .rr-legend .ticks {{ display: flex; justify-content: space-between; font-size: .72rem; color: {MUTED};
   font-variant-numeric: tabular-nums; margin-top: .15rem; }}
@@ -126,6 +133,15 @@ header[data-testid=stHeader] {{ background: transparent; height: 0; }}
 .rr-card .meta {{ color: {MUTED}; font-size: .8rem; margin-bottom: .45rem; }}
 .rr-card .row {{ display: flex; flex-wrap: wrap; gap: .4rem 1.6rem; font-size: .9rem; color: {INK2}; }}
 .rr-card .row b {{ color: {INK}; font-variant-numeric: tabular-nums; }}
+
+.rr-rcards {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: .7rem; margin: .5rem 0 1rem; }}
+.rr-rcard {{ background: {SURFACE}; border: 1px solid {RULE}; border-radius: {RADIUS}; padding: .7rem .85rem; }}
+.rr-rcard .name {{ font: 650 1.05rem 'Fraunces', serif; color: {INK}; }}
+.rr-rcard .say {{ color: {MUTED}; font-size: .8rem; margin: .1rem 0 .4rem; min-height: 1.1rem; }}
+.rr-rcard .line {{ display: flex; justify-content: space-between; gap: .6rem; font-size: .85rem; padding: .22rem 0;
+  border-top: 1px solid {RULE}; color: {INK2}; }}
+.rr-rcard .line b {{ color: {INK}; font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }}
+.rr-group {{ font: 600 .72rem 'Inter'; letter-spacing: .1em; text-transform: uppercase; color: {PINE}; margin-top: 1rem; }}
 
 .rr-entry {{ border-top: 1px solid {RULE}; padding: 1rem 0 .4rem; }}
 .rr-entry .q {{ font: italic 500 1.2rem 'Fraunces', serif; color: {INK}; }}
@@ -147,7 +163,15 @@ header[data-testid=stHeader] {{ background: transparent; height: 0; }}
   .rr-stats .v {{ font-size: 1.3rem; }}
   .rr-mast .title {{ font-size: 1.7rem; }}
   .rr-table {{ font-size: .84rem; }}
-  .rr-legend .ramp {{ flex: 1 1 100%; }}
+  .st-key-topbar {{ flex-wrap: nowrap !important; align-items: center; }}
+  .st-key-topbar .rr-brand-sub, .st-key-region label {{ display: none; }}
+  .st-key-region {{ width: 150px !important; flex: 0 0 150px; }}
+  .rr-mast .sub {{ font-size: .86rem; }}
+  .rr-status > span:nth-child(n+2) {{ display: none; }}
+  .st-key-mapbox {{ width: calc(100vw - 3.5rem) !important; }}
+  .st-key-mapbox [data-testid=stVerticalBlock] {{ display: flex; flex-direction: column; }}
+  .st-key-mapbox [data-testid=stElementContainer]:first-child {{ order: 2; }}
+  .rr-legend {{ position: static; width: auto; border: none; border-top: 1px solid {RULE}; border-radius: 0; }}
 }}
 @media (prefers-reduced-motion: reduce) {{ * {{ transition: none !important; animation: none !important; }} }}
 </style>
@@ -243,6 +267,20 @@ def table(rows, cols, num=()):
                 f'<tbody>{body}</tbody></table></div>', unsafe_allow_html=True)
 
 
+def river_cards(cards):
+    """cards: list of dicts with name, say, and lines of (gauge, flow text, pill or date html)."""
+    body = ''
+    for c in cards:
+        lines = ''.join(f'<div class="line"><span>{esc(g)}</span><span><b>{esc(f)}</b> {extra}</span></div>'
+                        for g, f, extra in c['lines'])
+        body += f'<div class="rr-rcard"><div class="name">{esc(c["name"])}</div><div class="say">{esc(c["say"])}</div>{lines}</div>'
+    st.markdown(f'<div class="rr-rcards">{body}</div>', unsafe_allow_html=True)
+
+
+def group(text):
+    st.markdown(f'<div class="rr-group">{esc(text)}</div>', unsafe_allow_html=True)
+
+
 def colophon(text):
     st.markdown(f'<div class="rr-colophon">{esc(text)}</div>', unsafe_allow_html=True)
 
@@ -262,8 +300,21 @@ OFF_SEASON = '#cfc9bc'
 # The map won't start until its style loads, so the app fetches CARTO's style itself and hands
 # it over. A failed tile then only loses the background. BLANK_MAP is for when the style can't load.
 STYLE_URL = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
-BLANK_MAP = {'version': 8, 'sources': {}, 'glyphs': 'https://tiles.basemaps.cartocdn.com/fonts/{fontstack}/{range}.pbf',
+BLANK_MAP = {'version': 8, 'id': 'blank', 'sources': {}, 'glyphs': 'https://tiles.basemaps.cartocdn.com/fonts/{fontstack}/{range}.pbf',
              'layers': [{'id': 'paper', 'type': 'background', 'paint': {'background-color': '#f6f6f3'}}]}
+
+
+LAND_TILES = ('https://gis.blm.gov/arcgis/rest/services/lands/BLM_Natl_SMA_Cached_without_PriUnk/'
+              'MapServer/tile/{z}/{y}/{x}')
+
+
+def with_land(style, before):
+    """The style with BLM land tiles added under the town names. Plotly's own map layers failed here."""
+    at = next((i for i, x in enumerate(style['layers']) if x['id'] == before), len(style['layers']))
+    layer = {'id': 'land', 'type': 'raster', 'source': 'land', 'paint': {'raster-opacity': .45}}
+    return {**style, 'id': style['id'] + '-land', 'layers': style['layers'][:at] + [layer] + style['layers'][at:],
+            'sources': {**style['sources'], 'land': {'type': 'raster', 'tiles': [LAND_TILES], 'tileSize': 256,
+                                                     'attribution': 'BLM'}}}
 
 
 def ramp_css():

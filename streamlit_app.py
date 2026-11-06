@@ -61,7 +61,7 @@ def reaches():
 def fetch_style():
     r = requests.get(T.STYLE_URL, timeout=4)
     r.raise_for_status()
-    return r.json()
+    return {**r.json(), 'id': 'positron'}     # without a stable id Plotly reloads the style and drops layers
 
 
 def basemap():
@@ -69,6 +69,12 @@ def basemap():
         return fetch_style()
     except (requests.RequestException, ValueError):      # raises, so a failure isn't cached for a day
         return T.BLANK_MAP
+
+
+@st.cache_data(show_spinner=False)
+def fishing_access():
+    p = ROOT / 'data' / 'fishing_access.csv'
+    return pd.read_csv(p) if p.exists() else pd.DataFrame(columns=['name', 'lat', 'lon'])
 
 
 def secret(name):
@@ -126,7 +132,7 @@ if 'daily_bytes' not in ss:
 
 # Streamlit forgets a widget's value when its page isn't on screen. Re-assigning keeps the
 # map date, window, region and gauge picks when you move between sections and come back.
-PERSIST = ('region', 'map_mode', 'map_window', 'map_date', 'map_all', 'map_find', 'today_gauge', 'today_wy',
+PERSIST = ('region', 'map_land', 'map_fas', 'map_mode', 'map_window', 'map_date', 'map_all', 'map_find', 'today_gauge', 'today_wy',
            'hist_gauge', 'hist_win', 'temp_gauge', 'temp_year')
 for _k in PERSIST:
     if _k in ss:
@@ -291,7 +297,13 @@ if page.endswith('Map'):
             ss['map_find'], ss['map_clicked'] = clicked, clicked
 
     with st.container(key='controls'):
+        box = st.expander('Map options') if PHONE else st.container()    # keeps the map on a phone's first screen
+    with box:
         c1, c2, c3, c4 = st.columns([1.05, 1.2, 1, 1.5], gap='medium')
+        with st.container(horizontal=True, gap='medium'):
+            land = st.toggle('Public land', key='map_land',
+                             help='BLM map of who manages the land. Check boundaries before you rely on them for access.')
+            fas = st.toggle('Fishing access', key='map_fas', help='Montana FWP fishing access sites.')
     mode = c1.radio('Color rivers by', ['Change', 'Vs normal'], horizontal=True, key='map_mode',
                     help='Change: percent change in daily flow over the window. Vs normal: flow on the '
                          'end date as a percent of the median for that calendar day in other years.')
@@ -391,6 +403,8 @@ if page.endswith('Map'):
         ticks = ['50%', '71%', '100%', '141%', '200%']
         keys = [('▼', T.DROP, 'Below 90% of normal'), ('●', T.STEADY, '90 to 110%'),
                 ('▲', T.RISE, 'Above 110% of normal'), ('○', T.STONE, 'No reading or no normal yet')]
+    if fas:
+        keys.append(('◆', T.PINE, 'Fishing access'))
     hist_note = ' <span class="rr-pill warn">Past date</span>' if historical else ''
 
     # Each stretch of river now has one owner, so draw order doesn't matter and lines can be
@@ -447,7 +461,7 @@ if page.endswith('Map'):
                                     textfont=dict(size=11, color='white'), showlegend=False))
 
     clat, clon, zoom = config.REGION_VIEW.get(region, config.REGION_VIEW['All Montana'])
-    zoom -= 1.4 if PHONE else 0
+    zoom -= 1.55 if PHONE else 0
 
     # Label the biggest movers. Skip any that would land on a label already placed.
     live_mk = [r for r in live if r['site_no'] in site_xy.index]
@@ -483,8 +497,14 @@ if page.endswith('Map'):
                                 text=[tip(s, v) for s, v in zip(mk, vals)], hoverinfo='text', customdata=mk,
                                 unselected=dict(marker=dict(opacity=.01)), selected=dict(marker=dict(opacity=.01)),
                                 showlegend=False))
-    fig.update_layout(map=dict(style=style, center=dict(lat=clat, lon=clon), zoom=zoom),
-                      height=440 if PHONE else 620, margin=dict(l=0, r=0, t=0, b=0),
+    sites_fas = fishing_access() if fas else None
+    if fas and len(sites_fas):
+        fig.add_trace(go.Scattermap(lon=sites_fas['lon'], lat=sites_fas['lat'], mode='markers', showlegend=False,
+                                    marker=dict(size=5, color=T.PINE), hoverinfo='text',
+                                    text='Fishing access: ' + sites_fas['name'].astype(str).map(T.esc)))
+    fig.update_layout(map=dict(style=T.with_land(style, names_layer) if land else style,
+                               center=dict(lat=clat, lon=clon), zoom=zoom),
+                      height=440 if PHONE else 680, margin=dict(l=0, r=0, t=0, b=0),
                       uirevision=f'{region}-{find if find != ss.get("map_clicked") else "click"}',
                       hoverlabel=dict(bgcolor=T.SURFACE, bordercolor=T.RULE, font=dict(color=T.INK, size=13)))
 
@@ -525,9 +545,12 @@ if page.endswith('Map'):
                     + '</b></span>')
         else:
             body = '<span>No reading near this date. Seasonal gauges shut off in fall and winter.</span>'
+        now_row = next(iter(A.current_conditions(df, [find], str(as_of)).value), None)
+        say = A.river_note(now_row).value if now_row and r else ''
         st.markdown(f'<div class="rr-card" role="region" aria-label="Selected gauge">'
                     f'<div class="name">{T.esc(labels[find])}</div>'
                     f'<div class="meta">USGS {find} · {T.esc(reg_of.get(find, ""))}</div>'
+                    f'<div class="meta">{T.esc(say)}</div>'
                     f'<div class="row">{body}</div></div>', unsafe_allow_html=True)
         if not has_xy:
             st.caption('This gauge has no map location in the sites file, so it is not on the map.')
@@ -606,10 +629,25 @@ elif page.endswith('Today'):
         T.note(f'No gauge here has a reading from the 3 days before {T.date(LAST)}. The table shows the last '
                'reading from each one.')
 
-    T.section('Every gauge, today', 'Percent of median: under 75% is low for the date, over 130% is high.')
+    T.section('River by river', 'Percent of median: under 75% is low for the date, over 130% is high.')
+    pos = {s: i for i, s in enumerate(order)}
+    by_area: dict = {}
+    for r in sorted(rows, key=lambda r: pos.get(r['site_no'], 1e9)):
+        area = by_area.setdefault(reg_of.get(r['site_no'], 'Other') if region == 'All Montana' else '', {})
+        area.setdefault(r['river'], []).append(r)
+    for area, rivers in by_area.items():
+        if area:
+            T.group(area)
+        T.river_cards([{
+            'name': river,
+            'say': A.river_note(next((g for g in gs if is_current(g)), {})).value or 'No reading in the last 3 days.',
+            'lines': [(g['gauge'], T.cfs(g['flow_cfs']) + ' cfs',
+                       pct_label(g['pct_of_median']) if is_current(g) else
+                       f'<span class="rr-pill warn">{T.esc(T.date(g["date"], False))}</span>') for g in gs]}
+            for river, gs in rivers.items()])
+
     trows, group = [], None
     group_by = 'river' if region != 'All Montana' else 'region'
-    pos = {s: i for i, s in enumerate(order)}
     for r in sorted(rows, key=lambda r: pos.get(r['site_no'], 1e9)):
         g = r['river'] if group_by == 'river' else reg_of.get(r['site_no'], 'Other')
         if g != group:
@@ -623,9 +661,10 @@ elif page.endswith('Today'):
                       'temp': '–' if r['water_temp_max_f'] is None else f"{r['water_temp_max_f']:.0f}°F",
                       'date_html': T.esc(T.date(r['date'], False)) if is_current(r) else
                       f'<span class="rr-pill warn">{T.esc(T.date(r["date"]))}</span>', 'flags': flags})
-    T.table(trows, [('gauge', 'Gauge'), ('flow', 'Flow cfs'), ('median', 'Normal cfs'), ('pct_html', 'Vs normal'),
-                    ('chg', '7-day'), ('temp', 'Water max'), ('date_html', 'Reading'), ('flags', 'Notes')],
-            num=('flow', 'median', 'chg', 'temp'))
+    with st.expander('Every gauge as a table'):
+        T.table(trows, [('gauge', 'Gauge'), ('flow', 'Flow cfs'), ('median', 'Normal cfs'), ('pct_html', 'Vs normal'),
+                        ('chg', '7-day'), ('temp', 'Water max'), ('date_html', 'Reading'), ('flags', 'Notes')],
+                num=('flow', 'median', 'chg', 'temp'))
     old = len(rows) - len(fresh)
     if old:
         st.caption(f'{old} of {len(rows)} gauges have no reading from the last 3 days. Their last reading is '
@@ -947,4 +986,5 @@ else:
 
 T.colophon('Data: U.S. Geological Survey daily values (NWIS), refreshed through the USGS Water Data API. '
            'River lines: USGS NHDPlus via NLDI. Basemap: © OpenStreetMap contributors, © CARTO. '
+           'Land: BLM. Fishing access: Montana FWP. '
            'USGS can revise recent values. Not a safety tool; check conditions and FWP rules before you go.')

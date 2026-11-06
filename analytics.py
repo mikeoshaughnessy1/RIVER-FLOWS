@@ -175,6 +175,21 @@ def current_conditions(df, sites: list | None = None, as_of: str | None = None) 
                       f'As of {cutoff.date()}', used, caveats)
 
 
+def river_note(row: dict) -> ToolResult:
+    """One plain line about a current_conditions row: flow for the date, and water temp near the
+    73 F line. Facts only. FWP makes the actual call on restrictions."""
+    pct, temp, bits = row.get('pct_of_median'), row.get('water_temp_max_f'), []
+    if pct is not None:
+        bits.append('Running low for the date.' if pct < 75 else
+                    ('Running high for the date.' if pct > 130 else 'Near normal for the date.'))
+    if temp is not None and temp >= config.HOOT_OWL_F:
+        bits.append(f'Water at {temp:.0f}°F, at or above the {config.HOOT_OWL_F:.0f}°F line.')
+    elif temp is not None and temp >= config.HOOT_OWL_F - 5:
+        bits.append(f'Water at {temp:.0f}°F, close to the {config.HOOT_OWL_F:.0f}°F line.')
+    return ToolResult('river_note', ' '.join(bits), 'Flow vs the normal for the date, and water temp vs the FWP line.',
+                      row.get('gauge', ''), 1)
+
+
 def flow_stats(df, site, start=None, end=None) -> ToolResult:
     sn, label, err = _site(df, site)
     if err:

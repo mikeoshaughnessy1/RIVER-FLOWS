@@ -75,6 +75,8 @@ def daily_normals(g: pd.DataFrame, exclude_wy: int | None, col='flow_cfs') -> pd
     across every water year except `exclude_wy`. Feb 29 borrows from Feb 28."""
     hist = g[g['water_year'] != exclude_wy] if exclude_wy else g
     hist = hist[hist[col].notna()]
+    if hist.empty:   # brand-new gauge: no other years yet
+        return pd.DataFrame(columns=['p10', 'p25', 'median', 'p75', 'p90', 'years'])
     md = hist['md'].replace('02-29', '02-28')
     q = hist.groupby(md)[col].quantile([.1, .25, .5, .75, .9]).unstack()
     q.columns = ['p10', 'p25', 'median', 'p75', 'p90']
@@ -434,3 +436,58 @@ def data_quality_report(df, notes: list | None = None) -> ToolResult:
                       'Per gauge: missing flow days between its first and last date, share of flow '
                       'values still provisional, days USGS estimated, ice-affected days, days with '
                       'water temperature.', 'All gauges', len(df))
+
+
+def flow_change(df, as_of: str | None = None, window_days: int = 7, sites: list | None = None) -> ToolResult:
+    """Percent change in daily mean flow at each gauge over `window_days` ending on `as_of`.
+    End value = latest flow on or before as_of (no more than 3 days old). Start value = flow
+    on the end date minus window_days (or the nearest day up to 2 days either side)."""
+    if int(window_days) < 1 or int(window_days) > 365:
+        return ToolResult('flow_change', error='Window must be 1 to 365 days.')
+    end_cap = pd.Timestamp(as_of) if as_of else df['date'].max()
+    if end_cap < df['date'].min() or end_cap > df['date'].max() + pd.Timedelta(days=3):
+        return ToolResult('flow_change', error=f'No data for {end_cap.date()}. Loaded data runs '
+                          f'{df["date"].min().date()} to {df["date"].max().date()}.')
+    site_nos = []
+    for s in (sites or df['site_no'].unique()):
+        sn, _, err = _site(df, s)
+        if err:
+            return ToolResult('flow_change', error=err)
+        site_nos.append(sn)
+    rows, missing, used = [], [], 0
+    for sn in site_nos:
+        g = df[(df['site_no'] == sn) & df['flow_cfs'].notna()]
+        e = g[(g['date'] <= end_cap) & (g['date'] > end_cap - pd.Timedelta(days=4))]
+        label = df.loc[df['site_no'] == sn, 'label'].iloc[0]
+        if e.empty:
+            missing.append(label)
+            continue
+        end = e.iloc[-1]
+        target = end['date'] - pd.Timedelta(days=int(window_days))
+        near = g[(g['date'] - target).abs() <= pd.Timedelta(days=2)]
+        if near.empty:
+            missing.append(label)
+            continue
+        start = near.iloc[(near['date'] - target).abs().argsort().iloc[0]]
+        pct = None if not start['flow_cfs'] else float((end['flow_cfs'] / start['flow_cfs'] - 1) * 100)
+        norms = daily_normals(df[df['site_no'] == sn], end['water_year'])
+        md = '02-28' if end['md'] == '02-29' else end['md']
+        med = float(norms.loc[md, 'median']) if md in norms.index else None
+        rows.append({'site_no': sn, 'gauge': label, 'river': end['river'],
+                     'start_date': str(start['date'].date()), 'start_cfs': float(start['flow_cfs']),
+                     'end_date': str(end['date'].date()), 'end_cfs': float(end['flow_cfs']),
+                     'change_cfs': float(end['flow_cfs'] - start['flow_cfs']), 'change_pct': pct,
+                     'pct_of_median': None if not med else float(end['flow_cfs'] / med * 100),
+                     'status': end['flow_status']})
+        used += 2
+    caveats = []
+    if missing:
+        caveats.append('No flow near those dates at: ' + ', '.join(missing))
+    if any(r['status'] == 'Provisional' for r in rows):
+        caveats.append('Some end values are provisional and may be revised.')
+    caveats.append('Dam-controlled reaches (below Hebgen, Ennis, Clark Canyon, Lima, Ruby reservoirs) '
+                   'change when releases change, not just with weather.')
+    return ToolResult('flow_change', rows,
+                      f'Percent change in daily mean flow over {int(window_days)} days, ending on or just '
+                      f'before {end_cap.date()}. Percent of median uses the end date.',
+                      f'{len(rows)} gauges, {int(window_days)}-day change to {end_cap.date()}', used, caveats)

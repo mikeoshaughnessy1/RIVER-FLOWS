@@ -122,3 +122,24 @@ def colophon(text):
 
 def cfs(x):
     return '–' if x is None else f'{x:,.0f}'
+
+
+# ---- Map: diverging red (dropping / below normal) to blue (rising / above normal) ----
+# Mid-gray neutral instead of a pale one so steady rivers stay visible on the light basemap.
+DIVERGING = [(0.0, '#a51d2d'), (0.25, '#dd6650'), (0.5, '#9e998e'), (0.75, '#5b97cf'), (1.0, '#1c5aa6')]
+OFF_SEASON = '#d6d1c6'
+
+
+def _hex(h):
+    return tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
+
+
+def diverging_color(t: float) -> str:
+    """t in [0, 1]; 0 = full red, 0.5 = neutral, 1 = full blue."""
+    t = min(1.0, max(0.0, t))
+    for (a, ca), (b, cb) in zip(DIVERGING, DIVERGING[1:]):
+        if t <= b:
+            f = (t - a) / (b - a)
+            x, y = _hex(ca), _hex(cb)
+            return '#%02x%02x%02x' % tuple(round(x[i] + (y[i] - x[i]) * f) for i in range(3))
+    return DIVERGING[-1][1]

@@ -61,6 +61,11 @@ TOOLS = {
         'desc': 'Compare 2+ gauges over the same window (stats and percent of median).',
         'params': {'sites': {'type': 'array', 'items': {'type': 'string', 'enum': '__SITES__'}},
                    'start': S, 'end': S}, 'required': ['sites']},
+    'flow_change': {'fn': A.flow_change,
+        'desc': 'Percent change in flow over N days (default 7) ending on a date, at all or some gauges. '
+                'Use for "what is rising/dropping", "biggest change this week", the map page.',
+        'params': {'as_of': S, 'window_days': {'type': 'integer'},
+                   'sites': {'type': 'array', 'items': {'type': 'string', 'enum': '__SITES__'}}}},
     'list_gauges': {'fn': A.list_gauges, 'desc': 'List the gauges and their periods of record.',
                     'params': {}},
     'data_quality_report': {'fn': A.data_quality_report, 'needs_notes': True,
@@ -171,6 +176,17 @@ def rules_route(q: str, df) -> tuple[str, dict, list[str]]:
     year = years[0] if years else (df['date'].max().year - (1 if 'last year' in ql else 0))
     site = gauges[0] if gauges else None
 
+    if re.search(r'\b(rising|dropping|falling|coming up|going down|drop|rise|changed?|changing)\b', ql) \
+            and not re.search(r'\b(peak|runoff|earlier|trend)\b', ql):
+        m = re.search(r'(\d+)[- ]day', ql)
+        days = int(m.group(1)) if m else (1 if re.search(r'\b(today|yesterday|overnight)\b', ql) else
+                                          30 if 'month' in ql else 7)
+        args = {'window_days': days}
+        if gauges:
+            args['sites'] = gauges
+        if start and end:
+            args['as_of'] = end
+        return 'flow_change', args, notes
     if re.search(r'\b(missing|quality|clean|provisional|estimated|gaps?|bad data)\b', ql):
         return 'data_quality_report', {}, notes
     if re.search(r'\b(which|what|list) (gauges|sites|rivers)\b', ql):
@@ -256,6 +272,16 @@ def describe(res: dict) -> str:
         first = f", first on {v['first_day_below']}" if v['first_day_below'] else ''
         return (f"{v['days_below']} day(s) below {_f(v['threshold_cfs'])} cfs{first}. Lowest "
                 f"{_f(v['lowest_cfs'])} cfs on {v['lowest_date']}.")
+    if t == 'flow_change':
+        rs = sorted([r for r in v if r['change_pct'] is not None], key=lambda r: r['change_pct'])
+        if not rs:
+            return 'No gauges had flow at both ends of that window.'
+        def one(r):
+            return f"{r['gauge']} {r['change_pct']:+.0f}% ({_f(r['start_cfs'])} to {_f(r['end_cfs'])} cfs)"
+        if len(rs) <= 3:
+            return '; '.join(one(r) for r in rs) + '.'
+        return ('Biggest drops: ' + '; '.join(one(r) for r in rs[:3]) + '.\nBiggest rises: '
+                + '; '.join(one(r) for r in rs[::-1][:3]) + '.')
     if t == 'compare_gauges':
         return '\n'.join(f"{r['gauge']}: mean {_f(r['mean_cfs'])} cfs" +
                          (f", {_f(r['pct_of_median'])}% of median" if r['pct_of_median'] else '') for r in v)
@@ -283,6 +309,7 @@ NEXT = {
     'hot_water_by_year': 'Pair hot years with low-flow days; low water heats faster.',
     'low_flow_days': 'Check water temps for the same summer.',
     'compare_gauges': 'Use percent of median, not cfs, when comparing rivers of different sizes.',
+    'flow_change': 'Open the Map page and slide the date to watch it move.',
     'data_quality_report': 'Treat provisional and estimated days with care, especially recent ones.',
 }
 

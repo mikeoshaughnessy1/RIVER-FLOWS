@@ -2,7 +2,7 @@
 
 ## 1. Two USGS services agree
 The history snapshot came from the legacy NWIS daily-values service. The app's refresh uses the new
-Water Data API. For Aug 1 to Nov 4, 2026, all 11 gauges: **1,054 gauge-days, 0 mismatches** in flow,
+Water Data API. For Aug 1 to Nov 4, 2026, the original 11 gauges: **1,054 gauge-days, 0 mismatches** in flow,
 mean temp, max temp and approval status.
 
 ## 2. Independent check (plain pandas, no app code)
@@ -10,8 +10,8 @@ mean temp, max temp and approval status.
 
 | Check | Independent script | App |
 |---|---|---|
-| Rows / gauges | 82,876 / 11 | 82,876 / 11 (Data page) |
-| Total of all daily flows | 121,623,514 cfs-days | same (Data page check sum) |
+| Rows / gauges | 190,224 / 24 | 190,224 / 24 (Data page) |
+| Total of all daily flows | 217,617,918 cfs-days | same (Data page check sum) |
 | Gallatin nr Gateway, Nov 4 2026 | 376 cfs, median 379, 99% | 376, 379, 99% (Today) |
 | Gallatin at Logan, 2021 days ≥ 73°F | 38 | 38 (Water temp; Ask) |
 | Jefferson, 2025 days < 500 cfs | 83 | 83 (Ask) |
@@ -25,7 +25,7 @@ Diffed against the original: 1 cell changed, every date still parses.
 
 | Prediction (written before upload) | Result after upload, no restart |
 |---|---|
-| Check sum up exactly 1,000: 121,624,514 | 121,624,514 ✔ |
+| Check sum up exactly 1,000: 217,618,918 | 217,618,918 ✔ |
 | July 2026 mean at Gateway up 1,000 / 31 = 32.3 cfs (798 → 830) | 798 → 830 ✔ |
 | July 2026 high becomes 1,726 on Jul 15 | 1,726 on 2026-07-15 ✔ |
 | WY2026 peak unchanged (2,760 on May 31) | unchanged ✔ |
@@ -54,3 +54,12 @@ Bug found and fixed: "How is the Gallatin running?" went to the **East** Gallati
 Regression test: `test_the_gallatin_is_not_east_gallatin`.
 
 To do ourselves: 5 questions on the live app with Gemini on, screenshot each Method log.
+
+## 6. Map
+- `flow_change` is checked by hand in tests (100 → 150 cfs over 7 days = +50%; 150 → 75 in 1 day = -50%).
+- River lines come from the USGS river network above each gauge. Big rivers are drawn first and
+  smaller gauges on top, so each stretch takes the color of the nearest gauge below it. Checked by
+  plotting all 24 reaches: rivers join at Three Forks and Twin Bridges with no gaps.
+- Color is never the only signal: hover shows cfs and percent, and a ranked table sits under the map.
+- Bug found: a gauge with only one year of data crashed the "normal" calculation. Fixed; regression
+  test `test_gauge_with_one_year_has_no_normal_but_no_crash`.

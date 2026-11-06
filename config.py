@@ -8,12 +8,25 @@ SITES = {
     '06052500': ('Gallatin', 'Gallatin at Logan'),
     '06050000': ('Hyalite Creek', 'Hyalite Cr at Hyalite RS'),
     '06048650': ('East Gallatin', 'E Gallatin abv Water Reclamation'),
+    '06037500': ('Madison', 'Madison nr West Yellowstone'),
+    '06038500': ('Madison', 'Madison bl Hebgen Lake'),
     '06040000': ('Madison', 'Madison nr Cameron'),
     '06041000': ('Madison', 'Madison bl Ennis Lake'),
+    '06012500': ('Red Rock', 'Red Rock bl Lima Reservoir'),
+    '06016000': ('Beaverhead', 'Beaverhead at Barretts'),
+    '06018500': ('Beaverhead', 'Beaverhead nr Twin Bridges'),
+    '06019500': ('Ruby', 'Ruby abv reservoir nr Alder'),
+    '06023000': ('Ruby', 'Ruby nr Twin Bridges'),
+    '06025500': ('Big Hole', 'Big Hole nr Melrose'),
+    '06026210': ('Big Hole', 'Big Hole nr Glen'),
+    '06026500': ('Jefferson', 'Jefferson nr Twin Bridges'),
     '06036650': ('Jefferson', 'Jefferson nr Three Forks'),
+    '06033000': ('Boulder', 'Boulder R nr Boulder'),
+    '06054500': ('Missouri', 'Missouri at Toston'),
     '06191500': ('Yellowstone', 'Yellowstone at Corwin Springs'),
     '06192500': ('Yellowstone', 'Yellowstone nr Livingston'),
     '06195600': ('Shields', 'Shields nr Livingston'),
+    '12324200': ('Clark Fork', 'Clark Fork at Deer Lodge'),
 }
 
 START_DATE = '2000-10-01'   # start of water year 2001
@@ -50,7 +63,8 @@ REFRESH_DAYS = 120
 DEFAULT_GAUGE = {
     'gallatin': '06043500', 'madison': '06040000', 'yellowstone': '06192500',
     'jefferson': '06036650', 'east gallatin': '06048650', 'hyalite': '06050000',
-    'shields': '06195600',
+    'shields': '06195600', 'big hole': '06025500', 'beaverhead': '06018500', 'ruby': '06023000',
+    'boulder': '06033000', 'missouri': '06054500', 'clark fork': '12324200', 'red rock': '06012500',
 }
 # Local names people actually use -> gauge. Longer phrases are matched first.
 GAUGE_ALIASES = {
@@ -64,5 +78,8 @@ GAUGE_ALIASES = {
     'three forks': '06036650', 'jefferson': '06036650',
     'corwin': '06191500', 'gardiner': '06191500', 'yankee jim': '06191500',
     'livingston': '06192500', 'paradise valley': '06192500', 'shields': '06195600',
+    'wise river': '06025500', 'melrose': '06025500', 'glen': '06026210', 'barretts': '06016000',
+    'dillon': '06016000', 'alder': '06019500', 'west yellowstone': '06037500', 'hebgen': '06038500',
+    'toston': '06054500', 'deer lodge': '12324200', 'lima': '06012500',
 }
 QUESTION_LIMIT = 25     # per browser session

@@ -4,7 +4,7 @@ import analytics as A
 
 def test_snapshot_shape(real):
     df, notes = real
-    assert len(df) == 82876 and df['site_no'].nunique() == 11
+    assert len(df) == 190224 and df['site_no'].nunique() == 24
     assert not df.duplicated(['site_no', 'date']).any()
 
 

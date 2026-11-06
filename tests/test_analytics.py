@@ -110,3 +110,37 @@ def test_flags(real):
     assert any('Forecast' in f for f in agent.question_flags('Will the Madison be fishable next week?'))
     assert any('Safety' in f for f in agent.question_flags('Is it safe to float the lower Madison?'))
     assert any('Rules' in f for f in agent.question_flags('Is there a hoot owl on the Jefferson?'))
+
+
+def test_flow_change_by_hand():
+    rows = [('00000001', f'2025-06-{d:02d}', f, 10) for d, f in [(1, 100), (8, 150), (9, 75)]]
+    df, _, _ = make(rows)
+    r = A.flow_change(df, '2025-06-08', 7, ['00000001'])
+    assert r.value[0]['change_pct'] == 50 and r.value[0]['start_date'] == '2025-06-01'
+    r = A.flow_change(df, '2025-06-09', 1, ['00000001'])
+    assert r.value[0]['change_pct'] == -50
+
+
+def test_flow_change_skips_gauges_with_no_recent_flow():
+    rows = [('00000001', '2025-06-01', 100, 10), ('00000001', '2025-06-08', 120, 10),
+            ('00000002', '2025-05-01', 50, 10)]
+    df, _, _ = make(rows)
+    r = A.flow_change(df, '2025-06-08', 7)
+    assert [x['site_no'] for x in r.value] == ['00000001']
+    assert any('No flow near' in c for c in r.caveats)
+
+
+def test_flow_change_bad_window(tiny):
+    assert A.flow_change(tiny, None, 0).error
+
+
+def test_what_rivers_are_dropping_routes_to_change(real):
+    """'what rivers' used to hit the list-gauges rule first."""
+    df, _ = real
+    assert agent.rules_route('What rivers are dropping this week?', df)[:2] == ('flow_change', {'window_days': 7})
+
+
+def test_gauge_with_one_year_has_no_normal_but_no_crash():
+    df, _, _ = make([('00000001', '2025-06-01', 100, 10), ('00000001', '2025-06-08', 120, 10)])
+    r = A.current_conditions(df)
+    assert r.error is None and r.value[0]['median_cfs'] is None

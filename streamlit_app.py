@@ -34,6 +34,13 @@ def fetch_recent(days: int, api_key: str | None, _salt: str):
     return usgs.fetch_daily(list(config.SITES), start, None, api_key)
 
 
+@st.cache_data(show_spinner=False)
+def load_reaches():
+    import json
+    p = ROOT / 'data' / 'reaches.geojson'
+    return json.loads(p.read_text()) if p.exists() else {'features': []}
+
+
 def secret(name):
     try:
         return st.secrets.get(name)
@@ -53,9 +60,9 @@ if 'daily_bytes' not in ss:
 
 with st.sidebar:
     st.markdown('<div class="rr-serif" style="font-size:1.35rem;font-weight:650">River Report</div>'
-                '<div style="color:#6b7375;font-size:.8rem;margin-bottom:.8rem">Bozeman area · USGS gauges</div>',
+                '<div style="color:#6b7375;font-size:.8rem;margin-bottom:.8rem">Southwest Montana · USGS gauges</div>',
                 unsafe_allow_html=True)
-    page = st.radio('Section', ['1  Today', '2  History', '3  Water temp', '4  Ask', '5  Data'],
+    page = st.radio('Section', ['1  Map', '2  Today', '3  History', '4  Water temp', '5  Ask', '6  Data'],
                     key='page', label_visibility='collapsed')
 
 try:
@@ -115,13 +122,146 @@ def pct_label(p):
     return f'<span class="rr-pill {cls}">{p:,.0f}%</span>'
 
 
-# ---------------- 1 Today ----------------
+# ---------------- 1 Map ----------------
 
-if page.endswith('Today'):
+if page.endswith('Map'):
+    T.masthead('Southwest Montana', 'Which rivers are rising and dropping',
+               'Each river is colored by the gauge just below it. Red is dropping, blue is rising. '
+               'Pick any date and window to see the change at that moment.')
+    c1, c2, c3 = st.columns([1.2, 1.4, 1.4])
+    mode = c1.radio('Color by', ['Change', 'Vs normal'], horizontal=True, key='map_mode',
+                    help='Change: percent change over the window. Vs normal: flow on the end date as a '
+                         'percent of the median for that calendar day.')
+    window = c2.select_slider('Window', [1, 3, 7, 14, 30], value=7, key='map_window',
+                              format_func=lambda d: f'{d} day' + ('s' if d > 1 else ''),
+                              disabled=mode != 'Change')
+    as_of = c3.date_input('As of', LAST, min_value=df['date'].min() + pd.Timedelta(days=31),
+                          max_value=LAST, key='map_date')
+    fc = A.flow_change(df, str(as_of), window)
+    if fc.error:
+        T.note(fc.error)
+        st.stop()
+    rows = {r['site_no']: r for r in fc.value}
+
+    def metric(r):
+        if mode == 'Change':
+            return r['change_pct']
+        return r['pct_of_median']
+
+    def to_t(v):
+        # Change: -50% .. +50% maps to red .. blue. Vs normal: 50% .. 200% on a log scale.
+        if v is None:
+            return None
+        if mode == 'Change':
+            return (max(-50, min(50, v)) + 50) / 100
+        import math
+        return (max(-1, min(1, math.log2(max(v, 1) / 100))) + 1) / 2
+
+    mean_flow = df.groupby('site_no')['flow_cfs'].mean()
+    # Draw "below the gauge" stretches first, then big rivers, then small ones on top, so every
+    # stretch ends up colored by the nearest gauge below it.
+    feats = load_reaches()['features']
+    draw = sorted((f for f in feats if f['properties']['site_no'] in labels),
+                  key=lambda f: (not f['properties'].get('below', False), -mean_flow.get(f['properties']['site_no'], 0)))
+    fig = go.Figure()
+    import math
+    for feat in draw:
+        sn = feat['properties']['site_no']
+        r = rows.get(sn)
+        v = metric(r) if r else None
+        color = T.OFF_SEASON if v is None else T.diverging_color(to_t(v))
+        lon, lat = [], []
+        for line in feat['geometry']['coordinates']:
+            lon += [p[0] for p in line] + [None]
+            lat += [p[1] for p in line] + [None]
+        if r is None:
+            tip = f'{labels[sn]}: no recent flow (seasonal gauge or off)'
+        elif mode == 'Change':
+            tip = (f"{labels[sn]}: {r['start_cfs']:,.0f} to {r['end_cfs']:,.0f} cfs, "
+                   + ('n/a' if r['change_pct'] is None else f"{r['change_pct']:+.0f}%")
+                   + f" ({r['start_date']} to {r['end_date']})")
+        else:
+            tip = (f"{labels[sn]}: {r['end_cfs']:,.0f} cfs on {r['end_date']}, "
+                   + ('no normal' if r['pct_of_median'] is None else f"{r['pct_of_median']:.0f}% of normal"))
+        width = 1.6 + 1.1 * math.log10(max(mean_flow.get(sn, 10), 10))
+        fig.add_trace(go.Scattermap(lon=lon, lat=lat, mode='lines', line=dict(color=color, width=width),
+                                    hoverinfo='text', text=[tip] * len(lon), showlegend=False))
+    pts = df.drop_duplicates('site_no').set_index('site_no')
+    site_xy = sites.set_index('site_no')
+    mk = [s for s in order if s in site_xy.index]
+    vals = [metric(rows[s]) if s in rows else None for s in mk]
+    fig.add_trace(go.Scattermap(
+        lon=site_xy.loc[mk, 'lon'], lat=site_xy.loc[mk, 'lat'], mode='markers',
+        marker=dict(size=13, color='white'), hoverinfo='skip', showlegend=False))
+    fig.add_trace(go.Scattermap(
+        lon=site_xy.loc[mk, 'lon'], lat=site_xy.loc[mk, 'lat'], mode='markers',
+        marker=dict(size=9, color=[T.OFF_SEASON if v is None else T.diverging_color(to_t(v)) for v in vals]),
+        text=[labels[s] + ('' if v is None else (f': {v:+.0f}%' if mode == 'Change' else f': {v:.0f}% of normal'))
+              for s, v in zip(mk, vals)],
+        hoverinfo='text', showlegend=False))
+    # Color key: an invisible point carrying the colorscale
+    scale = [[t, c] for t, c in T.DIVERGING]
+    if mode == 'Change':
+        cb = dict(title=dict(text='% change', side='right'), tickvals=[0, .25, .5, .75, 1],
+                  ticktext=['-50%+', '-25%', '0', '+25%', '+50%+'])
+    else:
+        cb = dict(title=dict(text='vs normal', side='right'), tickvals=[0, .25, .5, .75, 1],
+                  ticktext=['50% or less', '71%', '100%', '141%', '200%+'])
+    cb.update(thickness=12, len=.6, x=1.0, y=.5, outlinewidth=0, tickfont=dict(size=11))
+    fig.add_trace(go.Scattermap(lon=[-111.0], lat=[45.5], mode='markers', hoverinfo='skip', showlegend=False,
+                                marker=dict(size=0.1, color=[0.5], colorscale=scale, cmin=0, cmax=1,
+                                            showscale=True, colorbar=cb)))
+    fig.update_layout(map=dict(style='carto-positron', center=dict(lat=45.45, lon=-111.85), zoom=6.4),
+                      height=620, margin=dict(l=0, r=0, t=0, b=0))
+    st.plotly_chart(fig, width='stretch', config={'displayModeBar': False, 'scrollZoom': True})
+
+    live = [r for r in fc.value if metric(r) is not None]
+    if live:
+        lo = min(live, key=metric)
+        hi = max(live, key=metric)
+        unit = '%' if mode == 'Change' else '% of normal'
+        fmt = (lambda v: f'{v:+.0f}%') if mode == 'Change' else (lambda v: f'{v:.0f}%')
+        if mode == 'Change':
+            up = sum(1 for r in live if r['change_pct'] >= 5)
+            down = sum(1 for r in live if r['change_pct'] <= -5)
+            k1, k2 = ('Rising 5%+', f'{up}'), ('Dropping 5%+', f'{down}')
+        else:
+            above = sum(1 for r in live if r['pct_of_median'] >= 110)
+            below = sum(1 for r in live if r['pct_of_median'] <= 90)
+            k1, k2 = ('Above normal', f'{above}'), ('Below normal', f'{below}')
+        T.stats([(k1[0], k1[1], f'of {len(live)} gauges'), (k2[0], k2[1], f'of {len(live)} gauges'),
+                 ('Biggest drop' if mode == 'Change' else 'Lowest', fmt(metric(lo)), lo['gauge']),
+                 ('Biggest rise' if mode == 'Change' else 'Highest', fmt(metric(hi)), hi['gauge'])])
+
+    T.figure(1, 'Every gauge, ranked',
+             f"{'Change over ' + str(window) + ' days' if mode == 'Change' else 'Percent of normal'} "
+             f'ending {pd.Timestamp(as_of):%b %d, %Y}. Gray rows had no flow (seasonal gauges shut off in fall).')
+    ranked = sorted(fc.value, key=lambda r: (metric(r) is None, metric(r) or 0))
+    trows = []
+    for r in ranked:
+        v = metric(r)
+        sw = '' if v is None else T.diverging_color(to_t(v))
+        trows.append({'sw_html': f'<span style="display:inline-block;width:22px;height:4px;border-radius:2px;'
+                                 f'background:{sw or T.OFF_SEASON};vertical-align:middle"></span>',
+                      'gauge': r['gauge'], 'river': r['river'],
+                      'start': f"{r['start_cfs']:,.0f}", 'end': f"{r['end_cfs']:,.0f}",
+                      'chg': '-' if r['change_pct'] is None else f"{r['change_pct']:+.0f}%",
+                      'norm': '-' if r['pct_of_median'] is None else f"{r['pct_of_median']:.0f}%"})
+    off = [labels[s] for s in order if s not in rows]
+    T.table(trows, [('sw_html', ''), ('gauge', 'Gauge'), ('river', 'River'), ('start', 'Start cfs'),
+                    ('end', 'End cfs'), ('chg', 'Change'), ('norm', 'Vs normal')],
+            num=('start', 'end', 'chg', 'norm'))
+    if off:
+        st.caption('No flow near this date: ' + ', '.join(off) + '.')
+    st.caption(' '.join(fc.caveats[-1:]))
+
+# ---------------- 2 Today ----------------
+
+elif page.endswith('Today'):
     cc = A.current_conditions(df)
     rows = cc.value
     T.masthead('Bozeman River Report', f'Rivers on {LAST:%A, %B %-d}',
-               f'{len(rows)} USGS gauges on the Gallatin, Madison, Jefferson and Yellowstone. '
+               f'{len(rows)} USGS gauges with flow today across Southwest Montana. '
                'Flows are daily means; "normal" is the median for the same day across the gauge\'s record.')
     near = [r for r in rows if r['pct_of_median'] is not None]
     hi = max(near, key=lambda r: r['pct_of_median'])
@@ -137,7 +277,7 @@ if page.endswith('Today'):
         ('Warmest water', f"{warm['water_temp_max_f']:.0f}°F" if warm else '–', warm['gauge'] if warm else 'no sensors'),
     ])
 
-    T.figure(1, 'Every gauge, today', 'Percent of median: under 75% is low for the date, over 130% is high.')
+    T.figure(2, 'Every gauge, today', 'Percent of median: under 75% is low for the date, over 130% is high.')
     trows, river = [], None
     for r in sorted(rows, key=lambda r: order.index(r['site_no'])):
         if r['river'] != river:
@@ -158,7 +298,7 @@ if page.endswith('Today'):
         for c in stale:
             st.caption(c)
 
-    T.figure(2, 'This water year against the record')
+    T.figure(3, 'This water year against the record')
     pick = st.selectbox('Gauge', order, index=order.index('06043500') if '06043500' in order else 0,
                         format_func=labels.get, key='today_gauge')
     wy = int(df.loc[df['site_no'] == pick, 'water_year'].max())
@@ -196,7 +336,7 @@ elif page.endswith('History'):
     if 'Madison' in labels[pick]:
         st.caption('The Madison is dam-regulated (Hebgen and Ennis), so its runoff is partly managed.')
 
-    T.figure(3, 'When the river peaked each year', 'Dot size is the peak flow. Earlier dots = earlier runoff.')
+    T.figure(4, 'When the river peaked each year', 'Dot size is the peak flow. Earlier dots = earlier runoff.')
     pf = full.copy()
     pf['day'] = pd.to_datetime('2001-01-01') + pd.to_timedelta(pf['peak_day_of_year'] - 1, unit='D')
     fig = go.Figure(go.Scatter(
@@ -209,7 +349,7 @@ elif page.endswith('History'):
 
     c1, c2 = st.columns([1, 1], gap='large')
     with c1:
-        T.figure(4, 'Typical flow by month')
+        T.figure(5, 'Typical flow by month')
         m = pd.DataFrame(A.monthly_flow(df, pick).value)
         mo = ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep']
         m = m.set_index('month').reindex(mo).reset_index()
@@ -219,7 +359,7 @@ elif page.endswith('History'):
         fig.update_layout(height=300, yaxis_title='Median cfs')
         st.plotly_chart(fig, width='stretch', config={'displayModeBar': False})
     with c2:
-        T.figure(5, 'Any window vs every earlier year')
+        T.figure(6, 'Any window vs every earlier year')
         g = df[df['site_no'] == pick]
         d0 = st.date_input('Window', (LAST - pd.Timedelta(days=29), LAST), min_value=g['date'].min(),
                            max_value=LAST, key='hist_win')
@@ -251,7 +391,7 @@ elif page.endswith('Water temp'):
     by = A.hot_water_by_year(df, pick)
     yrs = pd.DataFrame(by.value)
     yrs = yrs[yrs['summer_days_with_temp'] >= 60]
-    T.figure(6, 'Days at or above 73°F, by year', 'Years with fewer than 60 summer readings are left out.')
+    T.figure(7, 'Days at or above 73°F, by year', 'Years with fewer than 60 summer readings are left out.')
     fig = go.Figure(go.Bar(x=yrs['year'], y=yrs['days_at_or_above'],
                            marker_color=[T.HOT if d > 0 else T.RULE for d in yrs['days_at_or_above']],
                            text=yrs['days_at_or_above'], textposition='outside',
@@ -270,7 +410,7 @@ elif page.endswith('Water temp'):
                  ('Hottest', f"{v['hottest_f']:.1f}°F", pd.Timestamp(v['hottest_date']).strftime('%b %d')),
                  ('3+ day runs', str(len(v['runs_of_3_plus_days'])), 'consecutive hot days'),
                  ('Readings', str(v['days_with_temp']), 'days with a temp')])
-        T.figure(7, f'Daily water temperature, {year}')
+        T.figure(8, f'Daily water temperature, {year}')
         g = df[(df['site_no'] == pick) & (df['year'] == year)]
         fig = go.Figure()
         for a in v['runs_of_3_plus_days']:
@@ -342,12 +482,12 @@ elif page.endswith('Ask'):
 
 else:
     T.masthead('Data', 'Where the numbers come from',
-               'USGS daily values (provisional and approved) for 11 gauges, water year 2001 to now.')
+               f'USGS daily values (provisional and approved) for {df["site_no"].nunique()} gauges, water year 2001 to now.')
     T.stats([('Daily rows', f'{len(df):,}', 'one per gauge per day'),
              ('Gauges', str(df['site_no'].nunique()), f"{len(with_temp)} with water temp"),
              ('First day', f"{df['date'].min():%b %Y}", ''), ('Last day', f'{LAST:%b %d, %Y}', 'refreshed' if 'refresh' in ss.daily_src else ('uploaded' if 'Uploaded' in ss.daily_src else 'snapshot'))])
 
-    T.figure(8, 'Get the latest from USGS',
+    T.figure(9, 'Get the latest from USGS',
              f'Pulls the last {config.REFRESH_DAYS} days from the USGS Water Data API and lays it over the '
              'snapshot (recent provisional values get revised).')
     c1, c2 = st.columns([1, 2])
@@ -367,7 +507,7 @@ else:
     c2.caption('Without a USGS API key, USGS allows only a few requests per hour. A free key goes in '
                'the app secrets as USGS_API_KEY.')
 
-    T.figure(9, 'Upload changed data', 'Replaces just that table. Use this for the validation tests.')
+    T.figure(10, 'Upload changed data', 'Replaces just that table. Use this for the validation tests.')
     up = st.file_uploader('Daily values or sites CSV', type=['csv'], key='upload')
     if up is not None:
         h = hashlib.md5(up.getvalue()).hexdigest()
@@ -390,11 +530,11 @@ else:
     tot = df['flow_cfs'].sum()
     st.caption(f'Check sum: total of all daily flows = {tot:,.0f} cfs-days. Sites from {ss.sites_src}.')
 
-    T.figure(10, 'Load notes')
+    T.figure(11, 'Load notes')
     for n in notes:
         T.note(n['message'], ok=n['level'] == 'ok')
 
-    T.figure(11, 'Data quality by gauge',
+    T.figure(12, 'Data quality by gauge',
              'Provisional = not yet reviewed by USGS. Estimated days are mostly winter ice.')
     q = A.data_quality_report(df, notes).value['gauges']
     T.table(q, [('gauge', 'Gauge'), ('first', 'First'), ('last', 'Last'), ('missing_flow_days', 'Missing'),

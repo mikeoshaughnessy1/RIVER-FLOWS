@@ -6,34 +6,38 @@ instead of coffee.
 
 **What it shows**
 
-1. **Today**: every gauge's latest daily flow vs the median for that date, 7-day change, water temp,
+1. **Map**: Southwest Montana rivers colored by flow change over 1 to 30 days (red dropping,
+   blue rising) or by percent of normal, on any date back to 2000. Ranked table underneath.
+2. **Today**: every gauge's latest daily flow vs the median for that date, 7-day change, water temp,
    and this water year's hydrograph against the 10th to 90th percentile band.
-2. **History**: when each river peaked every year, typical flow by month, and any date window ranked
+3. **History**: when each river peaked every year, typical flow by month, and any date window ranked
    against every earlier year.
-3. **Water temp**: days at or above 73°F (the number Montana FWP watches for hoot-owl
+4. **Water temp**: days at or above 73°F (the number Montana FWP watches for hoot-owl
    restrictions) and 3+ day runs.
-4. **Ask**: plain-English questions. Gemini picks a tool and every number comes from that tool.
+5. **Ask**: plain-English questions. Gemini picks a tool and every number comes from that tool.
    No key? A keyword router answers instead.
-5. **Data**: refresh from USGS, upload changed files, load notes, data quality by gauge.
+6. **Data**: refresh from USGS, upload changed files, load notes, data quality by gauge.
 
-## Gauges (11)
+## Gauges (24)
 
-| River | Gauge | USGS site |
-|---|---|---|
-| Gallatin | above Deer Creek (Big Sky) | 06043120 |
-| Gallatin | near Gallatin Gateway | 06043500 |
-| Gallatin | at Logan | 06052500 |
-| Hyalite Creek | at Hyalite Ranger Station | 06050000 |
-| East Gallatin | above Water Reclamation Facility | 06048650 |
-| Madison | near Cameron | 06040000 |
-| Madison | below Ennis Lake (Bear Trap) | 06041000 |
-| Jefferson | near Three Forks | 06036650 |
-| Yellowstone | at Corwin Springs | 06191500 |
-| Yellowstone | near Livingston | 06192500 |
-| Shields | near Livingston | 06195600 |
+| River | Gauges (USGS site) |
+|---|---|
+| Gallatin | Big Sky 06043120, Gallatin Gateway 06043500, Logan 06052500 |
+| Hyalite Creek / East Gallatin | Hyalite RS 06050000, abv Water Reclamation 06048650 |
+| Madison | West Yellowstone 06037500, bl Hebgen 06038500, Cameron 06040000, bl Ennis Lake 06041000 |
+| Red Rock / Beaverhead | bl Lima Res 06012500, Barretts 06016000, nr Twin Bridges 06018500 |
+| Ruby | abv reservoir 06019500, nr Twin Bridges 06023000 |
+| Big Hole | Melrose 06025500, Glen 06026210 |
+| Jefferson | Twin Bridges 06026500, Three Forks 06036650 |
+| Boulder | nr Boulder 06033000 |
+| Missouri | Toston 06054500 |
+| Yellowstone / Shields | Corwin Springs 06191500, Livingston 06192500, Shields 06195600 |
+| Clark Fork | Deer Lodge 12324200 |
+
+Some gauges are seasonal (Red Rock, Barretts, Ruby nr Twin Bridges) and go quiet in winter.
 
 Daily mean discharge (cfs) plus daily mean and max water temperature, water year 2001
-(Oct 1, 2000) through Nov 4, 2026. 82,876 gauge-days.
+(Oct 1, 2000) through Nov 4, 2026. 190,224 gauge-days.
 
 ## Data
 
@@ -41,6 +45,8 @@ Daily mean discharge (cfs) plus daily mean and max water temperature, water year
   temp_mean_c, temp_max_c, flow_status (Approved/Provisional), flow_flags (Estimated, Ice...),
   temp_status`.
 - `data/sites.csv`: gauge names, river, short label, lat/lon.
+- `data/reaches.geojson`: the river line above each gauge (and a short stretch below the lowest
+  gauge on each river), from the USGS river network (NLDI). Rebuild with `scripts/fetch_reaches.py`.
 - The app loads these on open. **Refresh from USGS** pulls the last 120 days from the
   [USGS Water Data API](https://api.waterdata.usgs.gov/) and lays it over the snapshot.
 - `scripts/fetch_usgs.py` rebuilds the whole file from the API.

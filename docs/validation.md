@@ -76,3 +76,19 @@ To do ourselves: 5 questions on the live app with Gemini on, screenshot each Met
   per gauge) and memory from 400 MB to 100 MB (text stored as categories). Draws are cached.
 - Checked by plotting the June 14, 2022 Yellowstone flood: the Yellowstone and southwest rivers
   show as rising statewide.
+
+## 8. Design and reliability pass
+- State: Streamlit forgets widget values for pages that aren't on screen, so the map date, window,
+  region and gauge picks used to reset when you switched sections. They now persist. Checked with an
+  app walkthrough: set the map to Jun 14 2022 / 3 days, open Today, come back, values kept.
+- A gauge remembered from one region no longer breaks the picker after switching regions.
+- Bug found: "29,833% of normal" (Teton at Loma) and "1,051%" (Redwater) where normal flow is a few
+  hundredths of a cfs. Percent of normal is now blank under 1 cfs. Regression test
+  `test_no_percent_of_normal_when_normal_is_a_trickle`.
+- Bug found: "Warmest water 123°F" was the Boiling River hot spring. Hot spring and geyser gauges
+  (Boiling River, Tantalus Creek) are flagged in `config.THERMAL` and left out of temperature views.
+- Every page shows the newest reading date separately from how the data got here (snapshot
+  download date, a USGS refresh time, or an uploaded file), and warns when the newest reading is more
+  than 3 days old.
+- Walkthrough: all 6 sections x 4 regions, plus map find-a-gauge, "Open in History", water temp year,
+  and region switches with remembered picks: 40 steps, no exceptions or warnings.

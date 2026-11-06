@@ -14,6 +14,7 @@ import config
 
 URL = 'https://api.water.usgs.gov/nldi/linked-data/nwissite/USGS-{}/navigation/UM/flowlines'
 MAX_KM = 150
+SIMPLIFY_DEG = 0.0009   # about 70-100 m in Montana
 DOWN_URL = 'https://api.water.usgs.gov/nldi/linked-data/nwissite/USGS-{}/navigation/DM/flowlines'
 # Lowest gauge on a river: also draw the river below it, down to the confluence (km).
 # These "below" lines are drawn first, so any other gauge's own reach covers them.
@@ -23,11 +24,11 @@ DOWNSTREAM_KM = {'06041000': 75, '06052500': 20, '06026210': 30, '06023000': 8, 
                  '12324200': 30, '06054500': 20, '06012500': 15}
 
 
-def thin(coords, keep_every=4):
+def thin(coords, keep_every=1):
     pts = coords[::keep_every]
     if pts[-1] != coords[-1]:
         pts.append(coords[-1])
-    return [[round(x, 3), round(y, 3)] for x, y in pts]
+    return [[x, y] for x, y in pts]
 
 
 def get(url, km):
@@ -61,8 +62,12 @@ if __name__ == '__main__':
     # map draws smooth rivers instead of hatched ticks.
     for f in feats:
         merged = linemerge(MultiLineString(f['geometry']['coordinates']))
+        # Smooth by simplifying to ~100 m tolerance (keeps bends, drops noise) instead of
+        # dropping every Nth point, which made lines jagged.
+        merged = merged.simplify(SIMPLIFY_DEG, preserve_topology=False)
         parts = [merged] if merged.geom_type == 'LineString' else list(merged.geoms)
-        f['geometry']['coordinates'] = [[[round(x, 3), round(y, 3)] for x, y in p.coords] for p in parts]
+        f['geometry']['coordinates'] = [[[round(x, 4), round(y, 4)] for x, y in p.coords]
+                                        for p in parts if len(p.coords) > 1]
     out = pathlib.Path(__file__).resolve().parents[1] / 'data' / 'reaches.geojson'
     out.write_text(json.dumps({'type': 'FeatureCollection', 'features': feats}, separators=(',', ':')))
     print(len(feats), 'features for', len({f['properties']['site_no'] for f in feats}), 'gauges; saved',

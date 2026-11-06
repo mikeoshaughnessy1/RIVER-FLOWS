@@ -37,12 +37,21 @@ The full list is `data/sites.csv`. Some gauges are seasonal and go quiet in wint
 Daily mean discharge (cfs) plus daily mean and max water temperature, water year 2001
 (Oct 1, 2000) through Nov 4, 2026. 1,561,205 gauge-days.
 
+## Design
+
+Calm field-report look: warm paper, pine for the interface, river and stone for data, one serif for
+headlines (Fraunces) and one sans for everything else (Inter). Tokens and component styles live in
+`theme.py`. Color on the map always comes with a symbol (▲ rising, ● steady, ▼ dropping, ○ no reading),
+a legend that names the measure, window and date, and a ranked table, so nothing depends on color alone.
+Every page shows the newest reading date and where the data came from.
+
 ## Data
 
 - `data/daily_values.csv.gz`: one row per gauge per day (gzip; uploads can be .csv or .csv.gz). Columns: `site_no, date, flow_cfs,
   temp_mean_c, temp_max_c, flow_status (Approved/Provisional), flow_flags (Estimated, Ice...),
   temp_status`.
-- `data/sites.csv`: gauge names, river, short label, lat/lon.
+- `data/sites.csv`: gauge names, river, short label, lat/lon, region.
+- `data/snapshot.json`: when the bundled snapshot was downloaded (shown in the app).
 - `data/reaches.geojson`: the river line above each gauge (and a short stretch below the lowest
   gauge on each river), from the USGS river network (NLDI). Rebuild with `scripts/fetch_reaches.py`.
 - The app loads these on open. **Refresh from USGS** pulls the last 120 days from the

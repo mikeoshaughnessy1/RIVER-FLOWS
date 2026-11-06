@@ -36,6 +36,10 @@ FILES = {
 DAILY_REQUIRED = ['site_no', 'date', 'flow_cfs']
 SITE_REQUIRED = ['site_no', 'site_name']
 
+# Gauges on hot springs or geyser runoff. Their water temps are real but are not river water,
+# so they stay out of "warmest water" and the 73 F view.
+THERMAL = {'06190540': 'Boiling River (hot spring)', '06036940': 'Tantalus Creek (geyser runoff)'}
+
 # Fishing-relevant thresholds (Montana FWP drought/"hoot owl" policy watches 73 F daily max
 # for three days in a row; FWP makes the actual call, this is only a flag).
 HOOT_OWL_F = 73.0

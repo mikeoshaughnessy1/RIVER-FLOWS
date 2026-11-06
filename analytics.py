@@ -155,7 +155,8 @@ def current_conditions(df, sites: list | None = None, as_of: str | None = None) 
             'water_temp_mean_f': None if temps.empty else float(temps.iloc[-1]['temp_mean_f']),
             'status': last['flow_status'], 'flags': last['flow_flags'],
         }
-        if n is not None and n['median']:
+        # Normal under 1 cfs makes percents meaningless (0.02 cfs normal -> "29,833%")
+        if n is not None and n['median'] >= MIN_CHANGE_CFS:
             row['pct_of_median'] = float(last['flow_cfs'] / n['median'] * 100)
         if n is None or n['years'] < MIN_NORMAL_YEARS:
             caveats.append(f'{last["label"]}: fewer than {MIN_NORMAL_YEARS} other years of record, '
@@ -492,7 +493,8 @@ def flow_change(df, as_of: str | None = None, window_days: int = 7, sites: list 
                      'start_date': str(start['date'].date()), 'start_cfs': float(start['flow_cfs']),
                      'end_date': str(end['date'].date()), 'end_cfs': float(end['flow_cfs']),
                      'change_cfs': float(end['flow_cfs'] - start['flow_cfs']), 'change_pct': pct,
-                     'pct_of_median': None if not med else float(end['flow_cfs'] / med * 100),
+                     'pct_of_median': None if (med is None or med < MIN_CHANGE_CFS)
+                     else float(end['flow_cfs'] / med * 100),
                      'status': end['flow_status']})
         used += 2
     caveats = []
@@ -502,6 +504,9 @@ def flow_change(df, as_of: str | None = None, window_days: int = 7, sites: list 
         caveats.append('Some end values are provisional and may be revised.')
     if any(r['change_pct'] is None for r in rows):
         caveats.append(f'Percent change is left blank where flow started under {MIN_CHANGE_CFS:g} cfs.')
+    if any(r['pct_of_median'] is None for r in rows):
+        caveats.append(f'Percent of normal is left blank where normal flow is under {MIN_CHANGE_CFS:g} cfs '
+                       f'or there are no other years yet.')
     caveats.append('Dam-controlled reaches (below Hebgen, Ennis, Clark Canyon, Lima, Ruby reservoirs) '
                    'change when releases change, not just with weather.')
     return ToolResult('flow_change', rows,

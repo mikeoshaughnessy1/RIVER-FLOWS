@@ -150,3 +150,12 @@ def test_no_percent_change_on_a_trickle():
     df, _, _ = make([('00000001', '2025-06-01', 0.3, 10), ('00000001', '2025-06-08', 0.2, 10)])
     r = A.flow_change(df, '2025-06-08', 7)
     assert r.value[0]['change_pct'] is None and any('under 1 cfs' in c for c in r.caveats)
+
+
+def test_no_percent_of_normal_when_normal_is_a_trickle():
+    """Teton at Loma showed '29,833% of normal' because normal was 0.02 cfs."""
+    rows = [('00000001', f'{y}-06-01', 0.02, 10) for y in range(2015, 2025)] + [('00000001', '2025-06-01', 6, 10)]
+    df, _, _ = make(rows)
+    assert A.current_conditions(df).value[0]['pct_of_median'] is None
+    r = A.flow_change(df, '2025-06-01', 1)
+    assert r.value == [] or r.value[0]['pct_of_median'] is None

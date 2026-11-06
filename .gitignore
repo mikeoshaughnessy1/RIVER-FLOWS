@@ -1,0 +1,6 @@
+__pycache__/
+.pytest_cache/
+.streamlit/secrets.toml
+scripts/_legacy_raw.csv
+*.pyc
+.DS_Store

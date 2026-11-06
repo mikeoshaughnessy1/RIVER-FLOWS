@@ -21,4 +21,4 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898283+github-actions[bot]@users.noreply.github.com'
           git add data/recent.csv.gz data/recent.json
-          git commit -m 'Daily USGS data refresh' && git push
+          git commit -m 'Daily USGS data refresh' && git pull --rebase && git push

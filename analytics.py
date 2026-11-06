@@ -11,6 +11,7 @@ import config
 
 MIN_NORMAL_YEARS = 5          # need at least this many other years to call something "normal"
 FULL_YEAR_DAYS = 330          # a water year with fewer flow days than this is "partial"
+MIN_CHANGE_CFS = 1.0          # below this, percent change is not reported
 
 
 @dataclass
@@ -31,7 +32,7 @@ class ToolResult:
 
 def _site(df, site):
     """Accept a site number or an exact gauge label. Return (site_no, label, error)."""
-    labels = df.drop_duplicates('site_no').set_index('site_no')['label']
+    labels = pd.Series({k: g['label'].iloc[0] for k, g in _groups(df).items()})
     if site in labels.index:
         return site, labels[site], None
     hit = labels[labels.str.lower() == str(site).strip().lower()]
@@ -55,8 +56,22 @@ def _dates(df, start, end):
     return s, e, None
 
 
+_GROUPS: dict = {}
+
+
+def _groups(df):
+    """Rows for each gauge, split once per loaded table (scanning 1.5M rows per gauge is slow)."""
+    key = (id(df), len(df))
+    if key not in _GROUPS:
+        if len(_GROUPS) > 3:
+            _GROUPS.clear()
+        _GROUPS[key] = {k: g for k, g in df.groupby('site_no', observed=True, sort=False)}
+    return _GROUPS[key]
+
+
 def _gauge(df, site_no):
-    return df[df['site_no'] == site_no]
+    g = _groups(df).get(site_no)
+    return g if g is not None else df.iloc[0:0]
 
 
 def _fmt_window(s, e):
@@ -109,27 +124,25 @@ def current_conditions(df, sites: list | None = None, as_of: str | None = None) 
     """Latest daily mean flow per gauge, compared with the median for that calendar day."""
     caveats, out, used = [], [], 0
     site_nos = []
-    for s in (sites or df['site_no'].unique()):
+    for s in (sites or list(_groups(df))):
         sn, _, err = _site(df, s)
         if err:
             return ToolResult('current_conditions', error=err)
         site_nos.append(sn)
     cutoff = pd.Timestamp(as_of) if as_of else df['date'].max()
     for sn in site_nos:
-        g = _gauge(df, sn)
-        g = g[(g['date'] <= cutoff) & g['flow_cfs'].notna()]
+        full = _gauge(df, sn)
+        g = full[(full['date'] <= cutoff) & full['flow_cfs'].notna()]
         if g.empty:
             continue
         last = g.iloc[-1]
-        norms = daily_normals(_gauge(df, sn), last['water_year'])
+        norms = daily_normals(full, last['water_year'])
         md = '02-28' if last['md'] == '02-29' else last['md']
         n = norms.loc[md] if md in norms.index else None
         week = g[g['date'] == last['date'] - pd.Timedelta(days=7)]
-        prior = _gauge(df, sn)
-        prior = prior[(prior['md'] == last['md']) & (prior['water_year'] != last['water_year'])]
-        temps = _gauge(df, sn)
-        temps = temps[(temps['date'] <= last['date']) & (temps['date'] > last['date'] - pd.Timedelta(days=3))
-                      & temps['temp_max_f'].notna()]
+        prior = full[(full['md'] == last['md']) & (full['water_year'] != last['water_year'])]
+        temps = full[(full['date'] <= last['date']) & (full['date'] > last['date'] - pd.Timedelta(days=3))
+                     & full['temp_max_f'].notna()]
         row = {
             'site_no': sn, 'gauge': last['label'], 'river': last['river'],
             'date': str(last['date'].date()), 'flow_cfs': float(last['flow_cfs']),
@@ -449,16 +462,17 @@ def flow_change(df, as_of: str | None = None, window_days: int = 7, sites: list 
         return ToolResult('flow_change', error=f'No data for {end_cap.date()}. Loaded data runs '
                           f'{df["date"].min().date()} to {df["date"].max().date()}.')
     site_nos = []
-    for s in (sites or df['site_no'].unique()):
+    for s in (sites or list(_groups(df))):
         sn, _, err = _site(df, s)
         if err:
             return ToolResult('flow_change', error=err)
         site_nos.append(sn)
     rows, missing, used = [], [], 0
     for sn in site_nos:
-        g = df[(df['site_no'] == sn) & df['flow_cfs'].notna()]
+        full = _gauge(df, sn)
+        g = full[full['flow_cfs'].notna()]
         e = g[(g['date'] <= end_cap) & (g['date'] > end_cap - pd.Timedelta(days=4))]
-        label = df.loc[df['site_no'] == sn, 'label'].iloc[0]
+        label = full['label'].iloc[0]
         if e.empty:
             missing.append(label)
             continue
@@ -469,8 +483,9 @@ def flow_change(df, as_of: str | None = None, window_days: int = 7, sites: list 
             missing.append(label)
             continue
         start = near.iloc[(near['date'] - target).abs().argsort().iloc[0]]
-        pct = None if not start['flow_cfs'] else float((end['flow_cfs'] / start['flow_cfs'] - 1) * 100)
-        norms = daily_normals(df[df['site_no'] == sn], end['water_year'])
+        # Under 1 cfs a percent change is noise (0.3 -> 0.2 cfs reads as -33%), so leave it blank
+        pct = None if start['flow_cfs'] < MIN_CHANGE_CFS else float((end['flow_cfs'] / start['flow_cfs'] - 1) * 100)
+        norms = daily_normals(full, end['water_year'])
         md = '02-28' if end['md'] == '02-29' else end['md']
         med = float(norms.loc[md, 'median']) if md in norms.index else None
         rows.append({'site_no': sn, 'gauge': label, 'river': end['river'],
@@ -485,6 +500,8 @@ def flow_change(df, as_of: str | None = None, window_days: int = 7, sites: list 
         caveats.append('No flow near those dates at: ' + ', '.join(missing))
     if any(r['status'] == 'Provisional' for r in rows):
         caveats.append('Some end values are provisional and may be revised.')
+    if any(r['change_pct'] is None for r in rows):
+        caveats.append(f'Percent change is left blank where flow started under {MIN_CHANGE_CFS:g} cfs.')
     caveats.append('Dam-controlled reaches (below Hebgen, Ennis, Clark Canyon, Lima, Ruby reservoirs) '
                    'change when releases change, not just with weather.')
     return ToolResult('flow_change', rows,

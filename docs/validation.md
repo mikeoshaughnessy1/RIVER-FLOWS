@@ -10,8 +10,8 @@ mean temp, max temp and approval status.
 
 | Check | Independent script | App |
 |---|---|---|
-| Rows / gauges | 190,224 / 24 | 190,224 / 24 (Data page) |
-| Total of all daily flows | 217,617,918 cfs-days | same (Data page check sum) |
+| Rows / gauges | 1,561,205 / 199 | 1,561,205 / 199 (Data page) |
+| Total of all daily flows, negatives removed | 2,549,771,955 cfs-days | same (Data page check sum) |
 | Gallatin nr Gateway, Nov 4 2026 | 376 cfs, median 379, 99% | 376, 379, 99% (Today) |
 | Gallatin at Logan, 2021 days ≥ 73°F | 38 | 38 (Water temp; Ask) |
 | Jefferson, 2025 days < 500 cfs | 83 | 83 (Ask) |
@@ -25,7 +25,7 @@ Diffed against the original: 1 cell changed, every date still parses.
 
 | Prediction (written before upload) | Result after upload, no restart |
 |---|---|
-| Check sum up exactly 1,000: 217,618,918 | 217,618,918 ✔ |
+| Check sum up exactly 1,000: 2,549,772,955 | 2,549,772,955 ✔ |
 | July 2026 mean at Gateway up 1,000 / 31 = 32.3 cfs (798 → 830) | 798 → 830 ✔ |
 | July 2026 high becomes 1,726 on Jul 15 | 1,726 on 2026-07-15 ✔ |
 | WY2026 peak unchanged (2,760 on May 31) | unchanged ✔ |
@@ -63,3 +63,16 @@ To do ourselves: 5 questions on the live app with Gemini on, screenshot each Met
 - Color is never the only signal: hover shows cfs and percent, and a ranked table sits under the map.
 - Bug found: a gauge with only one year of data crashed the "normal" calculation. Fixed; regression
   test `test_gauge_with_one_year_has_no_normal_but_no_crash`.
+
+## 7. Statewide (199 gauges)
+- Gauges: every active Montana river gauge with 10+ years of daily flow (no ditches or canals),
+  plus Yellowstone Park gauges and Big Sky. Regions come from the USGS basin code.
+- The raw file has 6 negative daily flows (Belt Cr Dec 2021, Peoples Cr May 2002, -4.08 cfs-days
+  total). The app treats them as missing and says so in the load notes. The independent script
+  prints both totals; the "negatives removed" one matches the app exactly.
+- Percent change is left blank when flow started under 1 cfs (0.3 to 0.2 cfs is not a "-33% drop").
+  Regression test `test_no_percent_change_on_a_trickle`.
+- Speed: map draws went from 23 s to under 3 s (rows split by gauge once instead of scanned
+  per gauge) and memory from 400 MB to 100 MB (text stored as categories). Draws are cached.
+- Checked by plotting the June 14, 2022 Yellowstone flood: the Yellowstone and southwest rivers
+  show as rising statewide.

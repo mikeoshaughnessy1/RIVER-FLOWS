@@ -5,10 +5,13 @@ Usage: python scripts/independent_check.py [path/to/daily_values.csv]
 import sys
 import pandas as pd
 
-path = sys.argv[1] if len(sys.argv) > 1 else 'data/daily_values.csv'
-d = pd.read_csv(path, dtype={'site_no': str}, parse_dates=['date'])
+path = sys.argv[1] if len(sys.argv) > 1 else 'data/daily_values.csv.gz'
+d = pd.read_csv(path, dtype={'site_no': str}, parse_dates=['date'], low_memory=False)
 print(f'rows {len(d):,}   gauges {d.site_no.nunique()}   {d.date.min().date()} to {d.date.max().date()}')
 print(f'total of all daily flows: {d.flow_cfs.sum():,.0f} cfs-days')
+neg = d.flow_cfs < 0
+print(f'  without {int(neg.sum())} negative values (the app treats them as missing): '
+      f'{d.flow_cfs[~neg].sum():,.0f} cfs-days  <- compare with the Data page check sum')
 
 last = d[d.date == d.date.max()].set_index('site_no')['flow_cfs']
 print('\nlatest flow by gauge:')

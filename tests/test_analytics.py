@@ -144,3 +144,9 @@ def test_gauge_with_one_year_has_no_normal_but_no_crash():
     df, _, _ = make([('00000001', '2025-06-01', 100, 10), ('00000001', '2025-06-08', 120, 10)])
     r = A.current_conditions(df)
     assert r.error is None and r.value[0]['median_cfs'] is None
+
+
+def test_no_percent_change_on_a_trickle():
+    df, _, _ = make([('00000001', '2025-06-01', 0.3, 10), ('00000001', '2025-06-08', 0.2, 10)])
+    r = A.flow_change(df, '2025-06-08', 7)
+    assert r.value[0]['change_pct'] is None and any('under 1 cfs' in c for c in r.caveats)

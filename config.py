@@ -1,32 +1,21 @@
 """Every gauge, parameter code, file name and column name lives here. Nothing else in the
 code names a USGS code or a source column."""
 
-# USGS site number -> (river, short label used in the app). Grouped by river, upstream first.
-SITES = {
-    '06043120': ('Gallatin', 'Gallatin abv Deer Cr (Big Sky)'),
-    '06043500': ('Gallatin', 'Gallatin nr Gallatin Gateway'),
-    '06052500': ('Gallatin', 'Gallatin at Logan'),
-    '06050000': ('Hyalite Creek', 'Hyalite Cr at Hyalite RS'),
-    '06048650': ('East Gallatin', 'E Gallatin abv Water Reclamation'),
-    '06037500': ('Madison', 'Madison nr West Yellowstone'),
-    '06038500': ('Madison', 'Madison bl Hebgen Lake'),
-    '06040000': ('Madison', 'Madison nr Cameron'),
-    '06041000': ('Madison', 'Madison bl Ennis Lake'),
-    '06012500': ('Red Rock', 'Red Rock bl Lima Reservoir'),
-    '06016000': ('Beaverhead', 'Beaverhead at Barretts'),
-    '06018500': ('Beaverhead', 'Beaverhead nr Twin Bridges'),
-    '06019500': ('Ruby', 'Ruby abv reservoir nr Alder'),
-    '06023000': ('Ruby', 'Ruby nr Twin Bridges'),
-    '06025500': ('Big Hole', 'Big Hole nr Melrose'),
-    '06026210': ('Big Hole', 'Big Hole nr Glen'),
-    '06026500': ('Jefferson', 'Jefferson nr Twin Bridges'),
-    '06036650': ('Jefferson', 'Jefferson nr Three Forks'),
-    '06033000': ('Boulder', 'Boulder R nr Boulder'),
-    '06054500': ('Missouri', 'Missouri at Toston'),
-    '06191500': ('Yellowstone', 'Yellowstone at Corwin Springs'),
-    '06192500': ('Yellowstone', 'Yellowstone nr Livingston'),
-    '06195600': ('Shields', 'Shields nr Livingston'),
-    '12324200': ('Clark Fork', 'Clark Fork at Deer Lodge'),
+# Every gauge lives in data/sites.csv (site_no, site_name, river, label, lat, lon, region).
+# SITES maps site number -> (river, short label); REGION maps site number -> region.
+import csv as _csv
+import pathlib as _pl
+_SITES_CSV = _pl.Path(__file__).parent / 'data' / 'sites.csv'
+with open(_SITES_CSV, newline='') as _f:
+    _rows = list(_csv.DictReader(_f))
+SITES = {r['site_no']: (r['river'], r['label']) for r in _rows}
+REGION = {r['site_no']: r['region'] for r in _rows}
+REGIONS = ['Southwest', 'Upper Yellowstone', 'Yellowstone Park', 'Western', 'Central', 'Eastern']
+# Map view per region: (center lat, center lon, zoom)
+REGION_VIEW = {
+    'All Montana': (46.9, -109.6, 5.3), 'Southwest': (45.4, -111.8, 6.7),
+    'Upper Yellowstone': (45.4, -109.6, 6.6), 'Yellowstone Park': (44.65, -110.6, 7.8),
+    'Western': (47.3, -113.6, 6.2), 'Central': (47.3, -110.6, 6.0), 'Eastern': (46.9, -106.6, 5.8),
 }
 
 START_DATE = '2000-10-01'   # start of water year 2001
@@ -41,7 +30,7 @@ VALUE_COLS = list(PARAMS.values())
 
 # Uploaded / snapshot files are matched by name
 FILES = {
-    'daily': ('daily_values', 'daily'),     # any csv whose name contains one of these
+    'daily': ('daily_values', 'daily'),     # .csv or .csv.gz     # any csv whose name contains one of these
     'sites': ('sites',),
 }
 DAILY_REQUIRED = ['site_no', 'date', 'flow_cfs']

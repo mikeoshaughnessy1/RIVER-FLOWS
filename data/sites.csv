@@ -1,25 +1,200 @@
-site_no,site_name,lat,lon,river,label
-06036650,Jefferson River near Three Forks MT,45.8971361,-111.5956722,Jefferson,Jefferson nr Three Forks
-06040000,Madison River near Cameron MT,45.233133,-111.751633,Madison,Madison nr Cameron
-06041000,Madison River bl Ennis Lake nr McAllister MT,45.490231,-111.634506,Madison,Madison bl Ennis Lake
-06043120,"Gallatin River above Deer Creek, near Big Sky, MT",45.29727778,-111.2113917,Gallatin,Gallatin abv Deer Cr (Big Sky)
-06043500,"Gallatin River near Gallatin Gateway, MT",45.4973,-111.2707083,Gallatin,Gallatin nr Gallatin Gateway
-06048650,E Gallatin R ab Water Reclamation Fa nr Bozeman MT,45.725667,-111.066194,East Gallatin,E Gallatin abv Water Reclamation
-06050000,Hyalite C at Hyalite R S nr Bozeman MT,45.563328,-111.071889,Hyalite Creek,Hyalite Cr at Hyalite RS
-06052500,Gallatin River at Logan MT,45.8862472,-111.4420083,Gallatin,Gallatin at Logan
-06191500,Yellowstone River at Corwin Springs MT,45.1121194,-110.7936667,Yellowstone,Yellowstone at Corwin Springs
-06192500,"Yellowstone River near Livingston, MT",45.5972111,-110.5664972,Yellowstone,Yellowstone nr Livingston
-06195600,Shields River nr Livingston MT,45.7383611,-110.4794694,Shields,Shields nr Livingston
-06012500,Red Rock R bl Lima Reservoir nr Monida MT,44.65588056,-112.3712222,Red Rock,Red Rock bl Lima Reservoir
-06016000,Beaverhead River at Barretts MT,45.11612778,-112.7504944,Beaverhead,Beaverhead at Barretts
-06018500,Beaverhead River near Twin Bridges MT,45.38338889,-112.4528306,Beaverhead,Beaverhead nr Twin Bridges
-06019500,"Ruby River above reservoir near Alder, MT",45.1923194,-112.1428167,Ruby,Ruby abv reservoir nr Alder
-06023000,Ruby River near Twin Bridges MT,45.50691389,-112.3308889,Ruby,Ruby nr Twin Bridges
-06025500,Big Hole River near Melrose MT,45.52658056,-112.701725,Big Hole,Big Hole nr Melrose
-06026500,"Jefferson River near Twin Bridges, MT",45.613283,-112.329397,Jefferson,Jefferson nr Twin Bridges
-06033000,"Boulder River near Boulder, MT",46.21103056,-112.09165,Boulder,Boulder R nr Boulder
-06037500,"Madison River near West Yellowstone, MT",44.657072,-111.067964,Madison,Madison nr West Yellowstone
-06038500,Madison River bl Hebgen Lake nr Grayling MT,44.86639167,-111.3387806,Madison,Madison bl Hebgen Lake
-06054500,Missouri River at Toston MT,46.1465722,-111.4202778,Missouri,Missouri at Toston
-12324200,Clark Fork at Deer Lodge MT,46.39765,-112.7425389,Clark Fork,Clark Fork at Deer Lodge
-06026210,Big Hole River near Glen MT,45.4400944,-112.5560917,Big Hole,Big Hole nr Glen
+site_no,site_name,river,label,lat,lon,region,drain_area
+06016000,Beaverhead River at Barretts MT,Beaverhead,Beaverhead at Barretts,45.11612778,-112.7504944,Southwest,2730
+06017000,Beaverhead River at Dillon MT,Beaverhead,Beaverhead at Dillon,45.2183833,-112.6553333,Southwest,2892
+06018500,Beaverhead River near Twin Bridges MT,Beaverhead,Beaverhead nr Twin Bridges,45.38338889,-112.4528306,Southwest,3618
+06024450,Big Hole River bl Big Lake Cr at Wisdom MT,Big Hole,Big Hole bl Big Lake Cr at Wisdom,45.61796667,-113.4569417,Southwest,586
+06024540,Big Hole River bl Mudd Cr nr Wisdom MT,Big Hole,Big Hole bl Mudd Cr nr Wisdom,45.80754167,-113.3132694,Southwest,1275
+06025250,Big Hole River at Maiden Rock nr Divide MT,Big Hole,Big Hole at Maiden Rock nr Divide,45.7012694,-112.7359694,Southwest,2199
+06025500,Big Hole River near Melrose MT,Big Hole,Big Hole nr Melrose,45.52658056,-112.701725,Southwest,2472
+06026210,Big Hole River near Glen MT,Big Hole,Big Hole nr Glen,45.4400944,-112.5560917,Southwest,2668
+06033000,"Boulder River near Boulder, MT",Boulder,Boulder R nr Boulder,46.21103056,-112.09165,Southwest,381
+06048650,E Gallatin R ab Water Reclamation Fa nr Bozeman MT,East Gallatin,E Gallatin abv Water Reclamation,45.725667,-111.066194,Southwest,226.0
+06043120,"Gallatin River above Deer Creek, near Big Sky, MT",Gallatin,Gallatin abv Deer Cr (Big Sky),45.29727778,-111.2113917,Southwest,
+06043500,"Gallatin River near Gallatin Gateway, MT",Gallatin,Gallatin nr Gallatin Gateway,45.4973,-111.2707083,Southwest,819
+06052500,Gallatin River at Logan MT,Gallatin,Gallatin at Logan,45.8862472,-111.4420083,Southwest,1789
+06050000,Hyalite C at Hyalite R S nr Bozeman MT,Hyalite Creek,Hyalite Cr at Hyalite RS,45.563328,-111.071889,Southwest,48.5
+06026500,"Jefferson River near Twin Bridges, MT",Jefferson,Jefferson nr Twin Bridges,45.613283,-112.329397,Southwest,7616.0
+06036650,Jefferson River near Three Forks MT,Jefferson,Jefferson nr Three Forks,45.8971361,-111.5956722,Southwest,9558
+06037500,"Madison River near West Yellowstone, MT",Madison,Madison nr West Yellowstone,44.657072,-111.067964,Southwest,438.0
+06038500,Madison River bl Hebgen Lake nr Grayling MT,Madison,Madison bl Hebgen Lake,44.86639167,-111.3387806,Southwest,931
+06038800,Madison River at Kirby Ranch nr Cameron MT,Madison,Madison at Kirby Ranch nr Cameron,44.88865556,-111.580886,Southwest,1093
+06040000,Madison River near Cameron MT,Madison,Madison nr Cameron,45.233133,-111.751633,Southwest,1728.0
+06040800,Madison River ab powerplant nr McAllister MT,Madison,Madison ab powerplant nr McAllister,45.486594,-111.633858,Southwest,2212.7
+06041000,Madison River bl Ennis Lake nr McAllister MT,Madison,Madison bl Ennis Lake,45.490231,-111.634506,Southwest,2212.9
+06012500,Red Rock R bl Lima Reservoir nr Monida MT,Red Rock,Red Rock bl Lima Reservoir,44.65588056,-112.3712222,Southwest,566
+06006000,"Red Rock Cr ab Lakes, nr Lakeview, MT",Red Rock Creek,Red Rock Cr ab Lakes nr Lakeview,44.615792,-111.625669,Southwest,37.3
+06019500,"Ruby River above reservoir near Alder, MT",Ruby,Ruby abv reservoir nr Alder,45.1923194,-112.1428167,Southwest,534
+06020600,"Ruby River below reservoir near Alder, MT",Ruby,Ruby bl reservoir nr Alder,45.2418694,-112.1112389,Southwest,595
+06023000,Ruby River near Twin Bridges MT,Ruby,Ruby nr Twin Bridges,45.50691389,-112.3308889,Southwest,970
+06035000,Willow Creek near Harrison MT,Willow Creek,Willow Cr nr Harrison,45.723058,-111.741025,Southwest,85.9
+06200000,Boulder River at Big Timber MT,Boulder,Boulder at Big Timber,45.8337944,-109.9387056,Upper Yellowstone,525
+06207500,Clarks Fork Yellowstone River nr Belfry MT,Clarks Fork Yellowstone,Clarks Fork Yellowstone nr Belfry,45.011828,-109.062158,Upper Yellowstone,1153.0
+06208500,Clarks Fork Yellowstone River at Edgar MT,Clarks Fork Yellowstone,Clarks Fork Yellowstone at Edgar,45.46571389,-108.8441056,Upper Yellowstone,2045
+06191000,"Gardner River near Mammoth, YNP",Gardner,Gardner nr Mammoth,44.9923444,-110.690975,Upper Yellowstone,199
+06211000,Red Lodge Cr ab Cooney Re nr Boyd MT,Red Lodge Creek,Red Lodge Cr ab Cooney Re nr Boyd,45.43785,-109.2533111,Upper Yellowstone,142
+06209500,Rock Creek near Red Lodge MT,Rock Creek,Rock Cr nr Red Lodge,45.0861472,-109.3291889,Upper Yellowstone,108
+06195600,Shields River nr Livingston MT,Shields,Shields nr Livingston,45.7383611,-110.4794694,Upper Yellowstone,846
+06187915,Soda Butte Cr at Park Bndry at Silver Gate,Soda Butte Creek,Soda Butte Cr at Park Bndry at Silver Gate,45.00283056,-110.0018722,Upper Yellowstone,30.9
+06205000,"Stillwater River near Absarokee, MT",Stillwater,Stillwater nr Absarokee,45.53674167,-109.4220556,Upper Yellowstone,936
+06204070,W Rosebud Cr at Emerald Lk Campground nr Roscoe,W Rosebud Creek,W Rosebud Cr at Emerald Lk Campground nr Roscoe,45.25438735,-109.6998945,Upper Yellowstone,66.4
+06204050,West Rosebud Creek near Roscoe MT,West Rosebud Creek,West Rosebud Cr nr Roscoe,45.24323889,-109.7313028,Upper Yellowstone,53.0
+06211500,Willow Creek near Boyd MT,Willow Creek,Willow Cr nr Boyd,45.4221472,-109.2305306,Upper Yellowstone,49.0
+06191500,Yellowstone River at Corwin Springs MT,Yellowstone,Yellowstone at Corwin Springs,45.1121194,-110.7936667,Upper Yellowstone,2615
+06192500,"Yellowstone River near Livingston, MT",Yellowstone,Yellowstone nr Livingston,45.5972111,-110.5664972,Upper Yellowstone,3551
+06214500,Yellowstone River at Billings MT,Yellowstone,Yellowstone at Billings,45.800119,-108.468031,Upper Yellowstone,11807.0
+06190540,"Boiling River at Mammoth,YNP",Boiling,Boiling at Mammoth,44.9851333,-110.6893444,Yellowstone Park,
+06036805,"Firehole River at Old Faithful, YNP",Firehole,Firehole at Old Faithful,44.459333,-110.822272,Yellowstone Park,39.5
+06036905,Firehole River near West Yellowstone MT,Firehole,Firehole nr West Yellowstone,44.620183,-110.863503,Yellowstone Park,261.0
+06037100,"Gibbon River at Madison Jct, YNP",Gibbon,Gibbon at Madison Jct,44.6408,-110.861064,Yellowstone Park,125.0
+06188000,Lamar River nr Tower Ranger Station YNP,Lamar,Lamar nr Tower Ranger Station,44.92817778,-110.3942694,Yellowstone Park,668
+06036940,"Tantalus Creek at Norris Junction, YNP",Tantalus Creek,Tantalus Cr at Norris Junction,44.732725,-110.713253,Yellowstone Park,1.1
+06186500,Yellowstone River at Yellowstone Lk Outlet YNP,Yellowstone,Yellowstone at Yellowstone Lk Outlet,44.56709167,-110.3804056,Yellowstone Park,995
+12344000,Bitterroot River near Darby MT,Bitterroot,Bitterroot nr Darby,45.97205,-114.1412333,Western,1050
+12350250,Bitterroot River at Bell Crossing nr Victor MT,Bitterroot,Bitterroot at Bell Crossing nr Victor,46.4432,-114.1237667,Western,1944
+12352500,Bitterroot River near Missoula MT,Bitterroot,Bitterroot nr Missoula,46.83173889,-114.054861,Western,2824
+12335100,Blackfoot R ab Nevada Cr nr Helmville MT,Blackfoot,Blackfoot R ab Nevada Cr nr Helmville,46.9187944,-113.014986,Western,498
+12340000,Blackfoot River near Bonner MT,Blackfoot,Blackfoot nr Bonner,46.8994111,-113.7563194,Western,2287
+12330000,Boulder Creek at Maxville MT,Boulder Creek,Boulder Cr at Maxville,46.47165278,-113.2357694,Western,70.5
+12323800,Clark Fork near Galen MT,Clark Fork,Clark Fork nr Galen,46.20824167,-112.76735,Western,656
+12324200,Clark Fork at Deer Lodge MT,Clark Fork,Clark Fork at Deer Lodge,46.39765,-112.7425389,Western,1001
+12324680,Clark Fork at Goldcreek MT,Clark Fork,Clark Fork at Goldcreek,46.58998889,-112.9287139,Western,1774
+12331800,Clark Fork near Drummond MT,Clark Fork,Clark Fork nr Drummond,46.71191389,-113.3307806,Western,2516
+12334550,Clark Fork at Turah Bridge nr Bonner MT,Clark Fork,Clark Fork at Turah Bridge nr Bonner,46.8259111,-113.8140306,Western,3657
+12340500,Clark Fork above Missoula MT,Clark Fork,Clark Fork abv Missoula,46.87676389,-113.9321194,Western,6021
+12353000,Clark Fork below Missoula MT,Clark Fork,Clark Fork bl Missoula,46.8686333,-114.1277472,Western,9017
+12354500,Clark Fork at St. Regis MT,Clark Fork,Clark Fork at St. Regis,47.30163889,-115.0868694,Western,10728
+12389000,Clark Fork near Plains MT,Clark Fork,Clark Fork nr Plains,47.4292,-114.8565333,Western,19964
+12324400,Clark Fork ab Little Blackfoot R nr Garrison MT,Clark Fork ab Little Blackfoot,Clark Fork ab Little Blackfoot R nr Garrison,46.5109111,-112.789686,Western,1130
+12302055,Fisher River near Libby MT,Fisher,Fisher nr Libby,48.35560278,-115.31465,Western,842
+12363000,Flathead River at Columbia Falls MT,Flathead,Flathead at Columbia Falls,48.3618111,-114.18495,Western,4473
+12372000,Flathead River near Polson MT,Flathead,Flathead nr Polson,47.6802861,-114.2467278,Western,7079
+12388700,Flathead River at Perma MT,Flathead,Flathead at Perma,47.36679167,-114.585,Western,9024
+12325500,Flint Creek near Southern Cross MT,Flint Creek,Flint Cr nr Southern Cross,46.23266667,-113.2998722,Western,54
+12329500,Flint Creek at Maxville MT,Flint Creek,Flint Cr at Maxville,46.4637583,-113.2402778,Western,206
+12331500,Flint Creek near Drummond MT,Flint Creek,Flint Cr nr Drummond,46.62872778,-113.1506917,Western,490
+12301933,Kootenai River bl Libby Dam nr Libby MT,Kootenai,Kootenai bl Libby Dam nr Libby,48.40066389,-115.3187194,Western,8999
+480608115242901,"Libby Wetland Site bl Schrieber Lake nr Libby, MT",Libby,Libby Wetland Site bl Schrieber Lake nr Libby,48.1022259,-115.4089188,Western,
+12324590,Little Blackfoot River near Garrison MT,Little Blackfoot,Little Blackfoot nr Garrison,46.5194833,-112.7931722,Western,414
+12323840,Lost Creek near Anaconda MT,Lost Creek,Lost Cr nr Anaconda,46.161325,-112.8937972,Western,26.5
+12323850,"Lost Creek near Galen, MT",Lost Creek,Lost Cr nr Galen,46.2185722,-112.7741667,Western,60.5
+12358500,M F Flathead River near West Glacier MT,M F Flathead,M F Flathead nr West Glacier,48.49551667,-114.0102083,Western,1125
+12357500,"Middle Fork Flathead River at West Glacier, MT",Middle Fork Flathead,Middle Fork Flathead at West Glacier,48.499508,-113.975933,Western,943.0
+12332000,Middle Fork Rock Cr nr Philipsburg MT,Middle Fork Rock Creek,Middle Fork Rock Cr nr Philipsburg,46.1845694,-113.5015694,Western,121
+12323670,"Mill Creek nr Anaconda, MT",Mill Creek,Mill Cr nr Anaconda,46.0829722,-112.9171889,Western,39.5
+12323700,"Mill Creek at Opportunity, MT",Mill Creek,Mill Cr at Opportunity,46.11360278,-112.82806111,Western,42.4
+12377150,Mission Creek ab reservoir nr St. Ignatius MT,Mission Creek,Mission Cr ab reservoir nr St. Ignatius,47.32019167,-113.9878917,Western,13.5
+12355500,N F Flathead River nr Columbia Falls MT,N F Flathead,N F Flathead nr Columbia Falls,48.4957972,-114.1267639,Western,1556
+12338300,NF Blackfoot R ab Dry Gulch nr Ovando MT,NF Blackfoot,NF Blackfoot R ab Dry Gulch nr Ovando,46.9794944,-113.092186,Western,310
+12390700,Prospect Creek at Thompson Falls MT,Prospect Creek,Prospect Cr at Thompson Falls,47.5860611,-115.3551,Western,182
+12334510,Rock Creek near Clinton MT,Rock Creek,Rock Cr nr Clinton,46.7223361,-113.683061,Western,889
+12359800,S F Flathead R ab Twin C nr Hungry Horse MT,S F Flathead,S F Flathead R ab Twin C nr Hungry Horse,47.9790972,-113.5606833,Western,1159
+12362500,S F Flathead River nr Columbia Falls MT,S F Flathead,S F Flathead nr Columbia Falls,48.35657778,-114.0378583,Western,1668
+12323250,"Silver Bow Cr bl Blacktail Cr, at Butte, MT",Silver Bow Creek,Silver Bow Cr bl Blacktail Cr at Butte,45.99916667,-112.5773222,Western,124.75
+12323600,Silver Bow Creek at Opportunity MT,Silver Bow Creek,Silver Bow Cr at Opportunity,46.1077583,-112.8052833,Western,343
+12323750,Silver Bow Creek at Warm Springs MT,Silver Bow Creek,Silver Bow Cr at Warm Springs,46.1794972,-112.780561,Western,473
+12381400,South Fork Jocko River near Arlee MT,South Fork Jocko,South Fork Jocko nr Arlee,47.19555,-113.850736,Western,57.6
+12354000,"St. Regis River near St. Regis, MT",St. Regis,St. Regis nr St. Regis,47.2967111,-115.122625,Western,304
+12365700,"Stillwater River at Lawrence Park, at Kalispell",Stillwater,Stillwater at Lawrence Park at Kalispell,48.21725,-114.313736,Western,596
+12370000,"Swan River near Bigfork, MT",Swan,Swan nr Bigfork,48.02423056,-113.9788194,Western,672
+12389500,Thompson River near Thompson Falls MT,Thompson,Thompson nr Thompson Falls,47.5918583,-115.229536,Western,638
+12301250,"Tobacco River at Eureka, MT",Tobacco,Tobacco at Eureka,48.8779472,-115.054461,Western,396.2
+12323760,Warm Springs Creek near Anaconda MT,Warm Springs Creek,Warm Springs Cr nr Anaconda,46.13366667,-112.9031528,Western,156
+12323770,Warm Springs Creek at Warm Springs MT,Warm Springs Creek,Warm Springs Cr at Warm Springs,46.180375,-112.7850778,Western,160
+12342500,West Fork Bitterroot River nr Conner MT,West Fork Bitterroot,West Fork Bitterroot nr Conner,45.72482778,-114.2822944,Western,317
+12366000,Whitefish River near Kalispell MT,Whitefish,Whitefish nr Kalispell,48.3201861,-114.2785944,Western,170
+12323710,"Willow Creek nr Anaconda, MT",Willow Creek,Willow Cr nr Anaconda,46.0645111,-112.8935306,Western,13.7
+12323720,"Willow Creek at Opportunity, MT",Willow Creek,Willow Cr at Opportunity,46.10716389,-112.810611,Western,28.6
+12304500,Yaak River near Troy MT,Yaak,Yaak nr Troy,48.5617222,-115.9701583,Western,792
+06090500,Belt Creek near Monarch MT,Belt Creek,Belt Cr nr Monarch,47.20859444,-110.93174722,Central,355.0
+06111800,Big Spring Cr at R&B Trading Post nr Lewistown MT,Big Spring Creek,Big Spring Cr at R&B Trading Post nr Lewistown,47.0878333,-109.4575,Central,191
+06099000,Cut Bank Creek at Cut Bank MT,Cut Bank Creek,Cut Bank Cr at Cut Bank,48.63340278,-112.3464806,Central,1032
+06073500,Dearborn River near Craig MT,Dearborn,Dearborn nr Craig,47.199025,-112.0959056,Central,322
+06130000,Flatwillow Creek near Mosby MT,Flatwillow Creek,Flatwillow Cr nr Mosby,46.9286611,-107.9328417,Central,1855
+06110020,Judith River above Carr Creek near Utica MT,Judith,Judith abv Carr Cr nr Utica,46.9177222,-110.1889444,Central,319
+06114700,"Judith River nr mouth, nr Winifred MT",Judith,Judith nr mouth nr Winifred,47.6651583,-109.6520139,Central,2747
+06071300,Little Prickly Pear Cr at Wolf Cr MT,Little Prickly Pear Creek,Little Prickly Pear Cr at Wolf Cr,47.0054361,-112.070311,Central,391
+06099500,Marias River near Shelby MT,Marias,Marias nr Shelby,48.4271972,-111.889836,Central,2716
+06101500,Marias River near Chester MT,Marias,Marias nr Chester,48.3059611,-111.0805278,Central,4944
+06102050,Marias River near Loma MT,Marias,Marias nr Loma,47.94590278,-110.5808389,Central,7027
+06054500,Missouri River at Toston MT,Missouri,Missouri at Toston,46.1465722,-111.4202778,Central,14641
+06065500,Missouri River bl Hauser Dam near Helena MT,Missouri,Missouri bl Hauser Dam nr Helena,46.76619167,-111.8887944,Central,16669
+06066500,Missouri River bl Holter Dam nr Wolf Cr MT,Missouri,Missouri bl Holter Dam nr Wolf Cr,46.99473889,-112.0106667,Central,16924
+06074000,Missouri River at Cascade MT,Missouri,Missouri at Cascade,47.2694861,-111.6952306,Central,18173
+06078200,Missouri River near Ulm MT,Missouri,Missouri nr Ulm,47.43496667,-111.3884444,Central,20605
+06090300,Missouri River near Great Falls MT,Missouri,Missouri nr Great Falls,47.5844444,-111.0605806,Central,22881
+06090800,Missouri River at Fort Benton MT,Missouri,Missouri at Fort Benton,47.8169111,-110.6661417,Central,24297
+06109500,Missouri River at Virgelle MT,Missouri,Missouri at Virgelle,48.0037833,-110.2588222,Central,34000
+06115200,Missouri River near Landusky MT,Missouri,Missouri nr Landusky,47.631431,-108.687744,Central,40649.0
+06088500,Muddy Creek at Vaughn MT,Muddy Creek,Muddy Cr at Vaughn,47.56126667,-111.54176944,Central,256.0
+06119600,"Musselshell River nr Martinsdale, MT",Musselshell,Musselshell nr Martinsdale,46.4769583,-110.2489667,Central,537
+06120500,Musselshell River at Harlowton MT,Musselshell,Musselshell at Harlowton,46.4288,-109.8411944,Central,1108
+06123030,Musselshell River ab Mud Cr nr Shawmut MT,Musselshell,Musselshell ab Mud Cr nr Shawmut,46.31899167,-109.4605472,Central,1518
+06126500,Musselshell River near Roundup MT,Musselshell,Musselshell nr Roundup,46.4277194,-108.5701028,Central,3998
+06127500,Musselshell River at Musselshell MT,Musselshell,Musselshell at Musselshell,46.522425,-108.1088722,Central,4534
+06130500,Musselshell River at Mosby MT,Musselshell,Musselshell at Mosby,46.99469167,-107.8891639,Central,7784
+06131200,Nelson Creek near Van Norman MT,Nelson Creek,Nelson Cr nr Van Norman,47.5365944,-106.1534528,Central,110
+06078500,North Fork Sun River near Augusta MT,North Fork Sun,North Fork Sun nr Augusta,47.6398611,-112.8593333,Central,259
+06061500,Prickly Pear Creek near Clancy MT,Prickly Pear Creek,Prickly Pear Cr nr Clancy,46.5190972,-111.946786,Central,192
+06076690,Smith River near Ft Logan MT,Smith,Smith nr Ft Logan,46.7958,-111.1785556,Central,845
+06077200,Smith River bl Eagle Cr nr Fort Logan MT,Smith,Smith bl Eagle Cr nr Fort Logan,46.82798056,-111.1922389,Central,1087
+06077500,Smith River near Eden MT,Smith,Smith nr Eden,47.18929167,-111.3862389,Central,1588
+06079000,South Fork Sun River near Augusta MT,South Fork Sun,South Fork Sun nr Augusta,47.6286083,-112.865761,Central,251
+06080900,Sun River bl Diversion Dam nr Augusta MT,Sun,Sun bl Diversion Dam nr Augusta,47.61850556,-112.6920556,Central,610
+06082200,Sun River bl Willow Cr nr Augusta MT,Sun,Sun bl Willow Cr nr Augusta,47.5471361,-112.3674306,Central,814
+06085800,Sun River at Simms MT,Sun,Sun at Simms,47.50162778,-111.9319139,Central,1296
+06089000,Sun River near Vaughn MT,Sun,Sun nr Vaughn,47.52577778,-111.511036,Central,1774
+06062500,Tenmile Creek near Rimini MT,Tenmile Creek,Tenmile Cr nr Rimini,46.5238972,-112.2566472,Central,33
+06063000,Tenmile Creek near Helena MT,Tenmile Creek,Tenmile Cr nr Helena,46.60500556,-112.0882639,Central,98.7
+06102500,Teton River bl South Fork nr Choteau MT,Teton,Teton bl South Fork nr Choteau,47.8830833,-112.6119833,Central,110
+06108800,Teton River at Loma MT,Teton,Teton at Loma,47.9327194,-110.5144333,Central,2027
+06091700,Two Medicine River bl South Fork nr Browning MT,Two Medicine,Two Medicine bl South Fork nr Browning,48.426953,-112.989983,Central,250.0
+06101200,"Willow Creek near Galata, MT",Willow Creek,Willow Cr nr Galata,48.44865556,-111.3453056,Central,818
+06151500,Battle Creek near Chinook MT,Battle Creek,Battle Cr nr Chinook,48.64949167,-109.2316944,Eastern,1631
+06166000,Beaver Cr bl Guston Coulee nr Saco MT,Beaver Creek,Beaver Cr bl Guston Coulee nr Saco,48.3567833,-107.5821861,Eastern,1199
+06167500,Beaver Creek near Hinsdale MT,Beaver Creek,Beaver Cr nr Hinsdale,48.4203111,-107.1711389,Eastern,1804.89
+06183450,Big Muddy Creek near Antelope MT,Big Muddy Creek,Big Muddy Cr nr Antelope,48.6728972,-104.5120861,Eastern,955
+06185110,Big Muddy Creek nr mouth nr Culbertson MT,Big Muddy Creek,Big Muddy Cr nr mouth nr Culbertson,48.16448056,-104.6295194,Eastern,2717
+06139500,Big Sandy Creek near Havre MT,Big Sandy Creek,Big Sandy Cr nr Havre,48.52671389,-109.8415778,Eastern,1787
+06287000,Bighorn R bl Yellowtail Afterbay Dam nr St. Xavier,Bighorn,Bighorn R bl Yellowtail Afterbay Dam nr St. Xavier,45.31690278,-107.9188889,Eastern,19670
+06287800,"Bighorn River at bridge, at St. Xavier, MT",Bighorn,Bighorn at bridge at St. Xavier,45.46075278,-107.7493283,Eastern,19906
+06288400,"Bighorn River at Two Leggins Bridge, near Hardin",Bighorn,Bighorn at Two Leggins Bridge nr Hardin,45.6440863,-107.6582164,Eastern,20614
+06294500,Bighorn River ab Tullock Cr nr Bighorn MT,Bighorn,Bighorn ab Tullock Cr nr Bighorn,46.1244722,-107.4687917,Eastern,22417
+06137570,"Boxelder Creek near Rocky Boy, MT",Boxelder Creek,Boxelder Cr nr Rocky Boy,48.2988333,-109.8354167,Eastern,46.6
+06142400,Clear Creek near Chinook MT,Clear Creek,Clear Cr nr Chinook,48.5788694,-109.3911306,Eastern,135
+06289000,Little Bighorn River at State Line nr Wyola MT,Little Bighorn,Little Bighorn at State Line nr Wyola,45.0071111,-107.6154083,Eastern,182
+06290500,Little Bighorn R bl Pass Cr nr Wyola MT,Little Bighorn,Little Bighorn R bl Pass Cr nr Wyola,45.177133,-107.39455,Eastern,426.0
+06293500,Little Bighorn River nr Crow Agency MT,Little Bighorn,Little Bighorn nr Crow Agency,45.568339,-107.452769,Eastern,1186.0
+06294000,Little Bighorn River near Hardin MT,Little Bighorn,Little Bighorn nr Hardin,45.7356861,-107.5574694,Eastern,1294
+06154410,"Little Peoples Creek near Hays, MT",Little Peoples Creek,Little Peoples Cr nr Hays,47.9649333,-108.6559611,Eastern,12.8
+06291500,"Lodge Grass Cr ab Willow Cr diversion, nr Wyola MT",Lodge Grass Creek,Lodge Grass Cr ab Willow Cr diversion nr Wyola,45.119861,-107.606778,Eastern,82.5
+06154430,"Lodge Pole Creek at Lodge Pole, MT",Lodge Pole Creek,Lodge Pole Cr at Lodge Pole,48.0310972,-108.5326111,Eastern,19.5
+06135000,Milk River at Eastern Crossing of Int Bndry,Milk,Milk at Eastern Crossing of Int Bndry,48.9748194,-110.4217778,Eastern,2452
+06140500,Milk River at Havre MT,Milk,Milk at Havre,48.5636861,-109.6959556,Eastern,5655
+06154100,Milk River near Harlem MT,Milk,Milk nr Harlem,48.48964167,-108.75895,Eastern,9652
+06155030,Milk River near Dodson MT,Milk,Milk nr Dodson,48.40277778,-108.2940944,Eastern,11134
+06155500,Milk River at Malta MT,Milk,Milk at Malta,48.3621944,-107.876375,Eastern,11654
+06164510,Milk River at Juneberg Bridge nr Saco MT,Milk,Milk at Juneberg Bridge nr Saco,48.50920278,-107.2187556,Eastern,17691
+06172310,Milk River at Tampico MT,Milk,Milk at Tampico,48.30790556,-106.8223167,Eastern,21341
+06174500,Milk River at Nashua MT,Milk,Milk at Nashua,48.13005278,-106.3643139,Eastern,22452
+06177000,Missouri River near Wolf Point MT,Missouri,Missouri nr Wolf Point,48.067325,-105.5330972,Eastern,80650
+06185500,Missouri River near Culbertson MT,Missouri,Missouri nr Culbertson,48.1235,-104.4733,Eastern,89858
+06154400,Peoples Creek near Hays MT,Peoples Creek,Peoples Cr nr Hays,48.2237333,-108.7140528,Eastern,227
+06178000,Poplar River at international boundary,Poplar,Poplar at international boundary,48.9902861,-105.6969083,Eastern,358
+06181000,Poplar River near Poplar MT,Poplar,Poplar nr Poplar,48.11791667,-105.1928167,Eastern,3170
+06324500,Powder River at Moorhead MT,Powder,Powder at Moorhead,45.0571972,-105.8783778,Eastern,8029
+06326500,Powder River near Locate MT,Powder,Powder nr Locate,46.4294361,-105.3103306,Eastern,13060
+06177500,Redwater River at Circle MT,Redwater,Redwater at Circle,47.4139722,-105.5756444,Eastern,551
+06169500,Rock Creek bl Horse Creek nr int'l boundary,Rock Creek,Rock Cr bl Horse Cr nr int'l boundary,48.969375,-106.8398417,Eastern,322
+06295113,Rosebud C at Reservation Bndry nr Kirby MT,Rosebud Creek,Rosebud C at Reservation Bndry nr Kirby,45.36116667,-106.9903556,Eastern,124
+06295220,Rosebud C Bel Lame Deer C nr Lame Deer MT,Rosebud Creek,Rosebud C Bel Lame Deer C nr Lame Deer,45.67582545,-106.700309,Eastern,645
+05017500,St. Mary River near Babb MT,St. Mary,St. Mary nr Babb,48.83303718,-113.4206533,Eastern,275
+05014500,Swiftcurrent Creek at Many Glacier MT,Swiftcurrent Creek,Swiftcurrent Cr at Many Glacier,48.798833,-113.656731,Eastern,31.2
+06306300,Tongue River at State Line nr Decker MT,Tongue,Tongue at State Line nr Decker,45.0091361,-106.8359444,Eastern,1453
+06307500,Tongue River at Tongue R Dam nr Decker MT,Tongue,Tongue at Tongue R Dam nr Decker,45.141275,-106.771356,Eastern,1784.0
+06307616,Tongue R at Birney Day School Br nr Birney MT,Tongue,Tongue R at Birney Day School Br nr Birney,45.41160556,-106.4573528,Eastern,2634
+06307830,Tongue R bl Brandenberg bridge nr Ashland MT,Tongue,Tongue R bl Brandenberg bridge nr Ashland,45.8403861,-106.2234333,Eastern,3882
+06308500,"Tongue River at Miles City, MT",Tongue,Tongue at Miles City,46.3845944,-105.8455222,Eastern,5405
+06295000,Yellowstone River at Forsyth MT,Yellowstone,Yellowstone at Forsyth,46.266636,-106.691303,Eastern,40152.0
+06309000,"Yellowstone River at Miles City, MT",Yellowstone,Yellowstone at Miles City,46.4207722,-105.8600333,Eastern,48287.7
+06327500,"Yellowstone River at Glendive, MT",Yellowstone,Yellowstone at Glendive,47.10588889,-104.7184306,Eastern,66731
+06329500,Yellowstone River near Sidney MT,Yellowstone,Yellowstone nr Sidney,47.67741389,-104.1554111,Eastern,69099

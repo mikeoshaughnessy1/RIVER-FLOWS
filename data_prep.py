@@ -13,7 +13,9 @@ def note(notes: list, level: str, msg: str):
 
 
 def read_csv(file_bytes: bytes) -> pd.DataFrame:
-    return pd.read_csv(io.BytesIO(file_bytes), dtype=str, keep_default_na=True)
+    gz = file_bytes[:2] == b'\x1f\x8b'          # gzip magic number
+    return pd.read_csv(io.BytesIO(file_bytes), dtype=str, keep_default_na=True,
+                       compression='gzip' if gz else None)
 
 
 def clean_sites(raw: pd.DataFrame, notes: list) -> pd.DataFrame:
@@ -34,7 +36,10 @@ def clean_sites(raw: pd.DataFrame, notes: list) -> pd.DataFrame:
         note(notes, 'warn', f'Sites file has {int(dups.sum())} duplicate site number(s) '
                             f'({", ".join(s.loc[dups, "site_no"])}); kept the first row of each.')
         s = s[~dups]
-    return s[['site_no', 'site_name', 'river', 'label', 'lat', 'lon']].reset_index(drop=True)
+    if 'region' not in s.columns:
+        s['region'] = s['site_no'].map(config.REGION).fillna('Other')
+    s['region'] = s['region'].fillna('Other')
+    return s[['site_no', 'site_name', 'river', 'label', 'lat', 'lon', 'region']].reset_index(drop=True)
 
 
 def clean_daily(raw: pd.DataFrame, notes: list) -> pd.DataFrame:
@@ -48,7 +53,7 @@ def clean_daily(raw: pd.DataFrame, notes: list) -> pd.DataFrame:
             d[c] = None
     # Excel drops the leading zero from "06043500"; put it back
     d['site_no'] = d['site_no'].astype(str).str.strip().str.replace(r'\.0$', '', regex=True).str.zfill(8)
-    dates = pd.to_datetime(d['date'], errors='coerce')
+    dates = pd.to_datetime(d['date'], errors='coerce', format='mixed')
     bad = dates.isna()
     if bad.any():
         note(notes, 'warn', f'{int(bad.sum())} row(s) had a blank or unreadable date and were dropped.')
@@ -87,6 +92,7 @@ def check_merge(daily: pd.DataFrame, sites: pd.DataFrame, notes: list) -> pd.Dat
         out['label'] = out['label'].fillna(out['site_no'])
         out['site_name'] = out['site_name'].fillna(out['site_no'])
         out['river'] = out['river'].fillna('Other')
+        out['region'] = out['region'].fillna('Other')
     note(notes, 'ok', f'Joined {before:,} daily rows to {sites["site_no"].nunique()} gauges; '
                       f'row count unchanged.')
     return out
@@ -103,6 +109,12 @@ def build(daily_raw: pd.DataFrame, sites_raw: pd.DataFrame):
     df['md'] = df['date'].dt.strftime('%m-%d')
     df['temp_mean_f'] = df['temp_mean_c'] * 9 / 5 + 32
     df['temp_max_f'] = df['temp_max_c'] * 9 / 5 + 32
+    # 1.5M rows: store repeated text as categories and drop columns the math never uses
+    df = df.drop(columns=['site_name', 'lat', 'lon'])
+    for c in ('site_no', 'label', 'river', 'region', 'md', 'flow_status', 'flow_flags', 'temp_status'):
+        df[c] = df[c].astype('category')
+    for c in ('water_year', 'year', 'month'):
+        df[c] = df[c].astype('int16')
     return df, sites, notes
 
 

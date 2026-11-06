@@ -30,6 +30,6 @@ def tiny():
 @pytest.fixture(scope='session')
 def real():
     root = pathlib.Path(__file__).resolve().parents[1] / 'data'
-    df, _, notes = dp.build(pd.read_csv(root / 'daily_values.csv', dtype=str),
+    df, _, notes = dp.build(pd.read_csv(root / 'daily_values.csv.gz', dtype=str),
                             pd.read_csv(root / 'sites.csv', dtype=str))
     return df, notes

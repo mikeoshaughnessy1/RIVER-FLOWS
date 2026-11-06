@@ -204,3 +204,19 @@ def test_river_note_states_flow_and_temp_facts():
         'Running low for the date. Water at 74°F, at or above the 73°F line.'
     assert A.river_note({'pct_of_median': 100, 'water_temp_max_f': 50}).value == 'Near normal for the date.'
     assert A.river_note({}).value == ''
+
+
+def test_gauge_split_cache_holds_at_most_two_tables(monkeypatch):
+    monkeypatch.setattr(A, '_GROUPS', {})
+    tables = [pd.DataFrame({'site_no': ['1'], 'flow_cfs': [float(i)]}) for i in range(5)]
+    for t in tables:
+        A._groups(t)
+        assert len(A._GROUPS) <= 2
+
+
+def test_gauge_split_survives_another_thread_clearing_the_cache(monkeypatch):
+    class ClearedAtOnce(dict):
+        def __setitem__(self, k, v):
+            self.clear()
+    monkeypatch.setattr(A, '_GROUPS', ClearedAtOnce())
+    assert list(A._groups(pd.DataFrame({'site_no': ['1'], 'flow_cfs': [1.0]}))) == ['1']

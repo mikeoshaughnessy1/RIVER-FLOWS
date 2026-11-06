@@ -62,11 +62,13 @@ _GROUPS: dict = {}
 def _groups(df):
     """Rows for each gauge, split once per loaded table (scanning 1.5M rows per gauge is slow)."""
     key = (id(df), len(df))
-    if key not in _GROUPS:
-        if len(_GROUPS) > 3:
+    groups = _GROUPS.get(key)      # a local, because another visitor's thread can clear _GROUPS at any moment
+    if groups is None:
+        if len(_GROUPS) >= 2:      # each split is a full table in memory; the app caches 2 tables
             _GROUPS.clear()
-        _GROUPS[key] = {k: g for k, g in df.groupby('site_no', observed=True, sort=False)}
-    return _GROUPS[key]
+        groups = {k: g for k, g in df.groupby('site_no', observed=True, sort=False)}
+        _GROUPS[key] = groups
+    return groups
 
 
 def _gauge(df, site_no):

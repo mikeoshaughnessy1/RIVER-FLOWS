@@ -33,3 +33,11 @@ def test_date_outside_new_data_is_pulled_back_in_range():
     at.session_state['daily_bytes'] = SHORT       # the remembered map date is now past the newest reading
     at.run()
     assert not at.exception
+
+
+def test_data_note_link_opens_the_issues_section():
+    at = AppTest.from_file(APP, default_timeout=120).run()
+    at.button(key='to_data').click().run()
+    assert at.radio(key='page').value == 'Data' and not at.exception
+    text = ' '.join(m.value for m in at.markdown)
+    assert 'Data issues found' in text and 'negative flow' in text and 'no flow reading' in text

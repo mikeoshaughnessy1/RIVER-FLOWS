@@ -209,11 +209,14 @@ def status_line():
     reporting = sum(1 for s in order if s in recent_flow)
     parts = [('Newest reading', f'{T.date(LAST)} daily mean'), ('Data', ss.data_origin),
              f'{reporting} of {len(order)} gauges reporting']
-    if warns:
-        parts.append(f'{len(warns)} data note{"s" if len(warns) > 1 else ""} on the Data page')
     if STALE:
         parts.append(f'The newest reading is {AGE_DAYS} days old. Refresh it on the Data page.')
     T.status(parts, stale=STALE)
+    if warns and page != 'Data':
+        def see_notes():
+            ss['page'] = 'Data'
+        st.button(f'⚠️ {len(warns)} data note{"s" if len(warns) > 1 else ""}: see Data', key='to_data',
+                  type='tertiary', on_click=see_notes)
 
 
 # ---------------- helpers ----------------
@@ -843,6 +846,17 @@ else:
              ('First reading', T.date(df['date'].min()), ''),
              ('Newest reading', T.date(LAST), ss.data_origin)])
 
+    T.section('Data issues found', 'Anything odd the app found while loading. Nothing is dropped without a note here.')
+    for n in notes:
+        T.note(n['message'], ok=n['level'] == 'ok')
+    quiet = sum(1 for s_ in order if s_ not in recent_flow)
+    if quiet:
+        T.note(f'{quiet} of {len(order)} gauges in {WHERE} have no flow reading in the last 3 days of the data. '
+               'Seasonal gauges shut off in fall and winter. They show as no reading on the map.')
+    if SNAP:
+        st.caption(f"Snapshot: {SNAP.get('source', '')}. Downloaded "
+                   f"{T.date(SNAP['downloaded']) if SNAP.get('downloaded') else 'date unknown'}. {SNAP.get('note', '')}")
+
     T.section('Get the latest from USGS',
              f'Pulls the last {config.REFRESH_DAYS} days from the USGS Water Data API and lays it over the '
              'snapshot (recent provisional values get revised).')
@@ -893,13 +907,6 @@ else:
         st.rerun()
     tot = df['flow_cfs'].sum()
     st.caption(f'Check sum: total of all daily flows = {tot:,.0f} cfs-days. Sites from {ss.sites_src}.')
-
-    T.section('Load notes', 'Anything odd the app found while loading. Nothing is dropped without a note here.')
-    for n in notes:
-        T.note(n['message'], ok=n['level'] == 'ok')
-    if SNAP:
-        st.caption(f"Snapshot: {SNAP.get('source', '')}. Downloaded {T.date(SNAP['downloaded']) if SNAP.get('downloaded') else 'date unknown'}. "
-                   f"{SNAP.get('note', '')}")
 
     T.section('Data quality by gauge',
              'Provisional = not yet reviewed by USGS. Estimated days are mostly winter ice.')

@@ -19,6 +19,7 @@ import theme as T
 import usgs
 
 ROOT = pathlib.Path(__file__).parent
+SNAPSHOT_SRC = 'Snapshot in data/daily_values.csv.gz'
 st.set_page_config(page_title='Montana River Report', page_icon='🎣', layout='wide')
 T.inject()
 
@@ -124,11 +125,17 @@ ss = st.session_state
 if 'daily_bytes' not in ss:
     ss.daily_bytes = (ROOT / 'data' / 'daily_values.csv.gz').read_bytes()
     ss.sites_bytes = (ROOT / 'data' / 'sites.csv').read_bytes()
-    ss.recent_bytes = recent_file()[0]
-    ss.daily_src = 'Snapshot in data/daily_values.csv.gz'
+    ss.daily_src = SNAPSHOT_SRC
     ss.sites_src = 'data/sites.csv'
-    ss.data_origin = snapshot_origin()
     ss.answers, ss.asked = [], 0
+# Set apart from the block above: a tab left open across a deploy has daily_bytes but not this.
+# Without an upload or refresh, always use today's file. A tab on an old one would rebuild a
+# table the cache already dropped, and push out the table everyone else is using.
+if ss.daily_src == SNAPSHOT_SRC:
+    ss.recent_bytes = recent_file()[0]
+    ss.data_origin = snapshot_origin()
+elif 'recent_bytes' not in ss:
+    ss.recent_bytes = b''
 
 # Streamlit forgets a widget's value when its page isn't on screen. Re-assigning keeps the
 # map date, window, region and gauge picks when you move between sections and come back.
@@ -961,11 +968,9 @@ else:
     if st.button('Restore original data'):
         ss.daily_bytes = (ROOT / 'data' / 'daily_values.csv.gz').read_bytes()
         ss.sites_bytes = (ROOT / 'data' / 'sites.csv').read_bytes()
-        ss.recent_bytes = recent_file()[0]
-        ss.daily_src, ss.sites_src, ss.last_upload = 'Snapshot in data/daily_values.csv.gz', 'data/sites.csv', None
+        ss.daily_src, ss.sites_src, ss.last_upload = SNAPSHOT_SRC, 'data/sites.csv', None
         ss.pop('csv_ready', None)
         ss.upload_n = ss.get('upload_n', 0) + 1
-        ss.data_origin = snapshot_origin()
         st.rerun()
     tot = df['flow_cfs'].sum()
     st.caption(f'Check sum: total of all daily flows = {tot:,.0f} cfs-days. Sites from {ss.sites_src}.')

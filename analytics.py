@@ -177,19 +177,44 @@ def current_conditions(df, sites: list | None = None, as_of: str | None = None) 
                       f'As of {cutoff.date()}', used, caveats)
 
 
+def _flow_note(pct):
+    if pct is None:
+        return ''
+    return 'Running low for the date.' if pct < 75 else ('Running high for the date.' if pct > 130 else 'Near normal for the date.')
+
+
+def _temp_note(temp):
+    if temp is not None and temp >= config.HOOT_OWL_F:
+        return f'Water at {temp:.0f}°F, at or above the {config.HOOT_OWL_F:.0f}°F line.'
+    if temp is not None and temp >= config.HOOT_OWL_F - 5:
+        return f'Water at {temp:.0f}°F, close to the {config.HOOT_OWL_F:.0f}°F line.'
+    return ''
+
+
+def _river_temp(row):
+    """Water max at a gauge, or None on hot springs: that water is not river water."""
+    return None if row.get('site_no') in config.THERMAL else row.get('water_temp_max_f')
+
+
 def river_note(row: dict) -> ToolResult:
     """One plain line about a current_conditions row: flow for the date, and water temp near the
     73 F line. Facts only. FWP makes the actual call on restrictions."""
-    pct, temp, bits = row.get('pct_of_median'), row.get('water_temp_max_f'), []
-    if pct is not None:
-        bits.append('Running low for the date.' if pct < 75 else
-                    ('Running high for the date.' if pct > 130 else 'Near normal for the date.'))
-    if temp is not None and temp >= config.HOOT_OWL_F:
-        bits.append(f'Water at {temp:.0f}°F, at or above the {config.HOOT_OWL_F:.0f}°F line.')
-    elif temp is not None and temp >= config.HOOT_OWL_F - 5:
-        bits.append(f'Water at {temp:.0f}°F, close to the {config.HOOT_OWL_F:.0f}°F line.')
-    return ToolResult('river_note', ' '.join(bits), 'Flow vs the normal for the date, and water temp vs the FWP line.',
+    text = ' '.join(x for x in (_flow_note(row.get('pct_of_median')), _temp_note(_river_temp(row))) if x)
+    return ToolResult('river_note', text, 'Flow vs the normal for the date, and water temp vs the FWP line.',
                       row.get('gauge', ''), 1)
+
+
+def river_summary(rows: list) -> ToolResult:
+    """One plain line for a whole river, from the current_conditions rows of its gauges with a
+    recent reading. Gauges that disagree are called mixed. Temp comes from the warmest gauge."""
+    definition = 'Flow vs the normal for the date at each gauge, and the warmest gauge vs the FWP line.'
+    if not rows:
+        return ToolResult('river_summary', 'No reading in the last 3 days.', definition)
+    flow = {_flow_note(r.get('pct_of_median')) for r in rows} - {''}
+    temps = [t for t in map(_river_temp, rows) if t is not None]
+    bits = [flow.pop() if len(flow) == 1 else ('Mixed for the date: gauges differ.' if flow else 'No normal for the date.'),
+            _temp_note(max(temps) if temps else None)]
+    return ToolResult('river_summary', ' '.join(x for x in bits if x), definition, rows[0].get('river', ''), len(rows))
 
 
 def flow_stats(df, site, start=None, end=None) -> ToolResult:

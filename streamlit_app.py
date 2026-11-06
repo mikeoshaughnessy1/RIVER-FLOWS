@@ -647,7 +647,7 @@ elif page.endswith('Today'):
             T.group(area)
         T.river_cards([{
             'name': river,
-            'say': A.river_note(next((g for g in gs if is_current(g)), {})).value or 'No reading in the last 3 days.',
+            'say': A.river_summary([g for g in gs if is_current(g)]).value,
             'lines': [(g['gauge'], T.cfs(g['flow_cfs']) + ' cfs',
                        pct_label(g['pct_of_median']) if is_current(g) else
                        f'<span class="rr-pill warn">{T.esc(T.date(g["date"], False))}</span>') for g in gs]}

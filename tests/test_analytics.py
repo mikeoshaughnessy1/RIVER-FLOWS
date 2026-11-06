@@ -1,6 +1,7 @@
 import pandas as pd
 import pytest
 import analytics as A
+import config
 import agent
 import data_prep as dp
 from conftest import make
@@ -220,3 +221,26 @@ def test_gauge_split_survives_another_thread_clearing_the_cache(monkeypatch):
             self.clear()
     monkeypatch.setattr(A, '_GROUPS', ClearedAtOnce())
     assert list(A._groups(pd.DataFrame({'site_no': ['1'], 'flow_cfs': [1.0]}))) == ['1']
+
+
+def test_river_note_leaves_hot_springs_out_of_the_temp_line():
+    hot = {'site_no': next(iter(config.THERMAL)), 'pct_of_median': 100, 'water_temp_max_f': 123}
+    assert A.river_note(hot).value == 'Near normal for the date.'
+    assert A.river_summary([hot]).value == 'Near normal for the date.'
+
+
+def test_river_summary_says_mixed_when_gauges_disagree():
+    rows = [{'pct_of_median': 66}, {'pct_of_median': 76}, {'pct_of_median': 420}]
+    assert A.river_summary(rows).value == 'Mixed for the date: gauges differ.'
+    assert A.river_summary(rows[:1] * 2).value == 'Running low for the date.'
+
+
+def test_river_summary_takes_temp_from_the_warmest_gauge():
+    rows = [{'pct_of_median': 100, 'water_temp_max_f': None}, {'pct_of_median': 100, 'water_temp_max_f': 60},
+            {'pct_of_median': 100, 'water_temp_max_f': 74}]
+    assert A.river_summary(rows).value == 'Near normal for the date. Water at 74°F, at or above the 73°F line.'
+
+
+def test_river_summary_tells_no_normal_apart_from_no_reading():
+    assert A.river_summary([{'pct_of_median': None, 'water_temp_max_f': None}]).value == 'No normal for the date.'
+    assert A.river_summary([]).value == 'No reading in the last 3 days.'

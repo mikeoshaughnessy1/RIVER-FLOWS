@@ -25,9 +25,11 @@ T.inject()
 
 # ---------------- data ----------------
 
-@st.cache_data(show_spinner=False)
+@st.cache_resource(show_spinner=False, max_entries=2)
 def build_cached(daily_bytes: bytes, sites_bytes: bytes):
-    # Keyed on file CONTENTS, so changed data never shows old numbers.
+    # Keyed on file CONTENTS, so changed data never shows old numbers. A shared resource, not
+    # cache_data: that hands every rerun a new 100 MB copy, and analytics._groups kept a split
+    # of each copy. Nothing may change this table in place.
     return dp.build(dp.read_csv(daily_bytes), dp.read_csv(sites_bytes))
 
 

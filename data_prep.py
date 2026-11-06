@@ -57,7 +57,7 @@ def clean_daily(raw: pd.DataFrame, notes: list) -> pd.DataFrame:
     if missing:
         raise ValueError(f'Daily values file is missing required column(s): {missing}. '
                          f'Expected columns like {config.DAILY_COLUMNS}.')
-    d = raw.copy()
+    d = raw                 # read_csv made this for us; a copy here is 1.5M more rows at the peak
     for c in config.DAILY_COLUMNS:
         if c not in d.columns:
             d[c] = None

@@ -69,7 +69,7 @@ TOOLS = {
     'list_gauges': {'fn': A.list_gauges, 'desc': 'List the gauges and their periods of record.',
                     'params': {}},
     'data_quality_report': {'fn': A.data_quality_report, 'needs_notes': True,
-        'desc': 'Missing days, provisional and estimated values, ice, temp coverage per gauge.',
+        'desc': 'Missing days, unreviewed and estimated values, ice, temp coverage per gauge.',
         'params': {}},
 }
 

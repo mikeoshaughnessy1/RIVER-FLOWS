@@ -68,3 +68,8 @@ def test_uploaded_data_is_not_overlaid_with_the_recent_file():
     upload(at, SHORT)
     at.run()
     assert not at.exception and at.session_state['recent_bytes'] == b''
+
+
+def test_data_page_does_not_say_provisional(app):
+    app.radio(key='page').set_value('Data').run()
+    assert 'provisional' not in ' '.join(x.value for x in [*app.markdown, *app.caption]).lower()

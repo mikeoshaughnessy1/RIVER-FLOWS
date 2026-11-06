@@ -482,7 +482,7 @@ def data_quality_report(df, notes: list | None = None) -> ToolResult:
         rows.append({
             'gauge': label, 'first': str(g['date'].min().date()), 'last': str(g['date'].max().date()),
             'missing_flow_days': int(span - f.sum()),
-            'provisional_pct': round(float((g.loc[f, 'flow_status'] == 'Provisional').mean() * 100), 1),
+            'unreviewed_pct': round(float((g.loc[f, 'flow_status'] == 'Provisional').mean() * 100), 1),
             'estimated_days': int(g.loc[f, 'flow_flags'].str.contains('Estimated').sum()),
             'ice_days': int(g['flow_flags'].str.contains('Ice').sum()),
             'temp_days': int(g['temp_max_c'].notna().sum()),

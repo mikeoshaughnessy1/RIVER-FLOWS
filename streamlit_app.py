@@ -1,12 +1,14 @@
 """Montana River Report: layout only. Data loading lives in data_prep, math in analytics,
 the assistant in agent, looks in theme."""
 from __future__ import annotations
+import gzip
 import hashlib
 import io
 import math
 import pathlib
 import pandas as pd
 import plotly.graph_objects as go
+import requests
 import streamlit as st
 
 import agent
@@ -50,6 +52,20 @@ def reaches():
     return load_reaches((st_.st_size, st_.st_mtime) if st_ else None)
 
 
+@st.cache_data(ttl=86400, show_spinner=False)
+def fetch_style():
+    r = requests.get(T.STYLE_URL, timeout=4)
+    r.raise_for_status()
+    return r.json()
+
+
+def basemap():
+    try:
+        return fetch_style()
+    except (requests.RequestException, ValueError):      # raises, so a failure isn't cached for a day
+        return T.BLANK_MAP
+
+
 def secret(name):
     try:
         return st.secrets.get(name)
@@ -74,6 +90,11 @@ def snapshot_origin():
     return f'snapshot downloaded {T.date(d)}' if d else 'bundled snapshot'
 
 
+PAGES = ['Map', 'Today', 'History', 'Water temp', 'Ask', 'Data']
+# shortcut: Streamlit can't see the screen width, so this reads the browser name. Tablets get the
+# desktop view. Upgrade if a width-aware map component ever comes in.
+PHONE = 'Mobi' in st.context.headers.get('User-Agent', '')
+
 ss = st.session_state
 if 'daily_bytes' not in ss:
     ss.daily_bytes = (ROOT / 'data' / 'daily_values.csv.gz').read_bytes()
@@ -91,15 +112,14 @@ for _k in PERSIST:
     if _k in ss:
         ss[_k] = ss[_k]
 
-# ---------------- sidebar ----------------
+# ---------------- top bar ----------------
 
-with st.sidebar:
-    st.markdown('<div class="rr-brand">River Report</div>'
-                '<div class="rr-brand-sub">Montana & Yellowstone · USGS gauges</div>', unsafe_allow_html=True)
-    page = st.radio('Section', ['1  Map', '2  Today', '3  History', '4  Water temp', '5  Ask', '6  Data'],
-                    key='page', label_visibility='collapsed')
-    region = st.selectbox('Region', ['All Montana'] + config.REGIONS, key='region',
-                          help='Filters the gauge lists and centers the map. Ask always sees every gauge.')
+with st.container(key='topbar', horizontal=True, horizontal_alignment='distribute', vertical_alignment='bottom'):
+    T.brand('River Report', 'Montana & Yellowstone field report from USGS gauges')
+    region = st.selectbox('Region', ['All Montana'] + config.REGIONS, key='region', width=210,
+                          help='Filters the map, gauge lists and download. Ask always sees every gauge.')
+with st.container(key='nav'):
+    page = st.radio('Section', PAGES, key='page', horizontal=True, label_visibility='collapsed')
 
 try:
     df, sites, notes = build_cached(ss.daily_bytes, ss.sites_bytes)
@@ -109,18 +129,20 @@ except ValueError as e:
                'until the data is fixed, so no numbers are guessed.')
     T.note(str(e), error=True)
     if st.button('Restore the original data', type='primary'):
-        for k in ('daily_bytes', 'sites_bytes'):
+        for k in ('daily_bytes', 'sites_bytes', 'last_upload'):
             ss.pop(k, None)
+        ss.upload_n = ss.get('upload_n', 0) + 1      # new key empties the uploader, or it re-applies the bad file
         st.rerun()
     st.stop()
 
 LAST = df['date'].max()
-DATA_KEY = hashlib.md5(ss.daily_bytes[:4096] + ss.daily_bytes[-4096:] + str(len(ss.daily_bytes)).encode()
-                       + ss.sites_bytes).hexdigest()
+DATA_KEY = dp.data_key(ss.daily_bytes, ss.sites_bytes)
 labels = sites.set_index('site_no')['label'].to_dict()
-labels = {s: labels.get(s, s) for s in df['site_no'].cat.categories if s in set(df['site_no'].unique())}
+present = set(df['site_no'].unique())
+labels = {s: labels.get(s, s) for s in df['site_no'].cat.categories if s in present}
 reg_of = sites.set_index('site_no')['region'].to_dict()
-order_all = [s for s in sites['site_no'] if s in labels] + sorted(s for s in labels if s not in set(sites['site_no']))
+listed = set(sites['site_no'])
+order_all = [s for s in sites['site_no'] if s in labels] + sorted(s for s in labels if s not in listed)
 order = [s for s in order_all if region == 'All Montana' or reg_of.get(s) == region]
 recent_temp = set(df.loc[(df['year'] >= LAST.year - 1) & df['temp_max_c'].notna(), 'site_no'].unique()) \
     - set(config.THERMAL)
@@ -135,6 +157,16 @@ def change_cached(key, as_of, window):
 @st.cache_data(show_spinner='Crunching flows', max_entries=8)
 def conditions_cached(key, site_tuple):
     return A.current_conditions(df, list(site_tuple))
+
+
+@st.cache_data(show_spinner=False, max_entries=4)
+def mean_flows(key):
+    return {k: (float(m) if pd.notna(m := g['flow_cfs'].mean()) else 0.0) for k, g in A._groups(df).items()}
+
+
+@st.cache_data(show_spinner='Checking the data', max_entries=4)
+def quality_cached(key):
+    return A.data_quality_report(df, notes).value['gauges']
 
 
 @st.cache_data(show_spinner='Preparing the download', max_entries=4)
@@ -152,6 +184,10 @@ def default(key, value):
     remembered value and a default never fight."""
     if key not in ss:
         ss[key] = value
+
+
+def clamp(d, lo, hi):
+    return min(max(d, lo), hi)
 
 
 def keep_valid(key, options):
@@ -179,12 +215,6 @@ def status_line():
         parts.append(f'The newest reading is {AGE_DAYS} days old. Refresh it on the Data page.')
     T.status(parts, stale=STALE)
 
-
-with st.sidebar:
-    st.markdown('---')
-    st.caption(f'Newest reading **{T.date(LAST)}**  \n{ss.data_origin[:1].upper() + ss.data_origin[1:]}')
-    if warns:
-        st.caption(f'{len(warns)} data note{"s" if len(warns) > 1 else ""} on the Data page')
 
 # ---------------- helpers ----------------
 
@@ -218,18 +248,27 @@ def hydrograph(site, wy, height=330):
 def pct_label(p):
     if p is None:
         return '<span class="rr-pill warn">no normal</span>'
-    cls = 'hot' if p < 75 else ('warn' if p > 130 else '')
-    return f'<span class="rr-pill {cls}">{p:,.0f}%</span>'
+    if p < 75:
+        return f'<span class="rr-pill low">▼ {p:,.0f}%</span>'
+    return f'<span class="rr-pill high">▲ {p:,.0f}%</span>' if p > 130 else f'<span class="rr-pill">{p:,.0f}%</span>'
 
 
 # ---------------- 1 Map ----------------
 
 if page.endswith('Map'):
-    T.masthead(WHERE, 'Which rivers are rising and dropping',
-               'Each river is colored by the gauge just below it. Pick a window and a date to see what '
-               'changed, where, and how current the reading is.')
-    status_line()
-    c1, c2, c3 = st.columns([1.15, 1.45, 1.4], gap='medium')
+    head = st.container()      # filled below: the headline needs the numbers the controls pick
+    # A click on a gauge lands here before the widgets draw. Handle each new click once, because
+    # the chart keeps reporting its last selection on every rerun.
+    pts = ((ss.get('map_chart') or {}).get('selection') or {}).get('points') or []
+    clicked = None
+    if pts != ss.get('map_seen', []):
+        ss['map_seen'] = pts
+        clicked = next((p['customdata'] for p in pts if p.get('customdata') in labels), None)
+        if clicked:
+            ss['map_find'], ss['map_clicked'] = clicked, clicked
+
+    with st.container(key='controls'):
+        c1, c2, c3, c4 = st.columns([1.05, 1.2, 1, 1.5], gap='medium')
     mode = c1.radio('Color rivers by', ['Change', 'Vs normal'], horizontal=True, key='map_mode',
                     help='Change: percent change in daily flow over the window. Vs normal: flow on the '
                          'end date as a percent of the median for that calendar day in other years.')
@@ -238,15 +277,26 @@ if page.endswith('Map'):
                               format_func=lambda d: f'{d} day' + ('s' if d > 1 else ''),
                               disabled=mode != 'Change',
                               help='Only used when coloring by change.')
-    default('map_date', LAST.date())
-    if ss['map_date'] > LAST.date():          # data was swapped for an older file
-        ss['map_date'] = LAST.date()
-    as_of = c3.date_input('As of', min_value=df['date'].min() + pd.Timedelta(days=31),
-                          max_value=LAST, key='map_date', format='MM/DD/YYYY',
-                          help=f'Any day from {T.date(df["date"].min() + pd.Timedelta(days=31))} '
-                               f'to the newest reading, {T.date(LAST)}.')
+    hi_d = LAST.date()
+    lo_d = min((df['date'].min() + pd.Timedelta(days=31)).date(), hi_d)
+    if ss.get('map_newest') != hi_d:          # new data: a date left on the newest reading moves with it
+        if ss.get('map_date') == ss.get('map_newest'):
+            ss.pop('map_date', None)
+        ss['map_newest'] = hi_d
+    default('map_date', hi_d)
+    ss['map_date'] = clamp(ss['map_date'] or hi_d, lo_d, hi_d)      # blank box, or data swapped for another file
+    as_of = c3.date_input('As of', min_value=lo_d, max_value=hi_d, key='map_date', format='MM/DD/YYYY',
+                          help=f'Any day from {T.date(lo_d)} to the newest reading, {T.date(hi_d)}.')
+    keep_valid('map_find', [None] + order)
+    find = c4.selectbox('Find a gauge', [None] + order, key='map_find', placeholder='Type a river or town',
+                        format_func=lambda s: 'All gauges' if s is None else f'{labels[s]}',
+                        help='Centers the map on one gauge and shows its numbers. Clicking a dot does too.')
+
     fc = change_cached(DATA_KEY, str(as_of), window)
     if fc.error:
+        with head:
+            T.masthead(WHERE, 'Rivers rising and dropping', 'This date could not be shown.')
+            status_line()
         T.note(fc.error, error=True)
         st.stop()
     rows = {r['site_no']: r for r in fc.value}
@@ -277,123 +327,167 @@ if page.endswith('Map'):
         v = metric(r) if r else None
         return None if v is None else round(to_t(v) * 20) / 20     # 21 color steps
 
+    def shade(v):
+        return T.OFF_SEASON if v is None else T.diverging_color(to_t(v))
+
+    # ---- headline: what changed, where
+    in_view = set(order)
+    live = [r for r in fc.value if r['site_no'] in in_view and metric(r) is not None]
+    fmt = (lambda v: f'{v:+.0f}%') if mode == 'Change' else (lambda v: f'{v:.0f}%')
+    ups = sum(1 for r in live if state(metric(r))[0] == '▲')
+    downs = sum(1 for r in live if state(metric(r))[0] == '▼')
+    gauges = lambda n: f'{n} gauge' + ('' if n == 1 else 's')
+    if live:
+        lo, hi = min(live, key=metric), max(live, key=metric)
+        if mode == 'Change':
+            title = f'{gauges(downs)} dropping, {ups} rising'
+            span = f'Over the {window} day{"s" if window > 1 else ""} ending {end_label}.'
+            ends = f'Biggest drop: {lo["gauge"]}, {fmt(metric(lo))}. Biggest rise: {hi["gauge"]}, {fmt(metric(hi))}.'
+        else:
+            title = f'{gauges(downs)} below normal, {ups} above'
+            span = f'On {end_label}.'
+            ends = f'Lowest: {lo["gauge"]}, {fmt(metric(lo))}. Highest: {hi["gauge"]}, {fmt(metric(hi))}.'
+        sub = f'{span} {ends} {len(live)} of {len(order)} gauges have a usable reading.'
+    else:
+        title = 'No readings near this date'
+        sub = 'Seasonal gauges shut off in fall and winter. Try a date in spring or summer, or another region.'
+    with head:
+        T.masthead(WHERE + (' · past date' if historical else ''), title, sub)
+        status_line()
+
     # ---- legend: what is measured, over what window, and what each state means
     if mode == 'Change':
         what = (f'<b>Change in daily mean flow</b> over the <b>{window} day{"s" if window > 1 else ""}</b> '
                 f'ending <b>{end_label}</b>.')
         ticks = ['-50%', '-25%', '0', '+25%', '+50%']
-        keys = [('▼', '#a51d2d', 'Dropping 5% or more'), ('●', '#8a857a', 'Within 5%'),
-                ('▲', '#1c5aa6', 'Rising 5% or more'), ('○', T.STONE, 'No reading near this date')]
+        keys = [('▼', T.DROP, 'Dropping 5% or more'), ('●', T.STEADY, 'Within 5%'),
+                ('▲', T.RISE, 'Rising 5% or more'), ('○', T.STONE, 'No reading near this date')]
     else:
         what = (f'<b>Flow vs normal</b> on <b>{end_label}</b>: daily mean as a percent of the median '
                 f'for that date in other years.')
         ticks = ['50%', '71%', '100%', '141%', '200%']
-        keys = [('▼', '#a51d2d', 'Below 90% of normal'), ('●', '#8a857a', '90 to 110%'),
-                ('▲', '#1c5aa6', 'Above 110% of normal'), ('○', T.STONE, 'No reading or no normal yet')]
+        keys = [('▼', T.DROP, 'Below 90% of normal'), ('●', T.STEADY, '90 to 110%'),
+                ('▲', T.RISE, 'Above 110% of normal'), ('○', T.STONE, 'No reading or no normal yet')]
     hist_note = ' <span class="rr-pill warn">Past date</span>' if historical else ''
-    st.markdown(
-        f'<div class="rr-legend" role="note" aria-label="Map legend">'
-        f'<div class="what">{what}{hist_note} Each river takes the color of the gauge just below it.</div>'
-        f'<div class="ramp" aria-hidden="true"><div class="bar" style="background:{T.ramp_css()}"></div>'
-        f'<div class="ticks">' + ''.join(f'<span>{t}</span>' for t in ticks) + '</div></div>'
-        '<div class="keys">' + ''.join(
-            f'<span class="key"><span class="rr-sym" style="color:{c}" aria-hidden="true">{sym}</span>{T.esc(lab)}</span>'
-            for sym, c, lab in keys) + '</div></div>', unsafe_allow_html=True)
 
-    # ---- find a gauge (keyboard-friendly way in, and a summary card)
-    in_view = set(order)
-    keep_valid('map_find', [None] + order)
-    find = st.selectbox('Find a gauge', [None] + order, key='map_find', placeholder='Type a river or town',
-                        format_func=lambda s: 'All gauges' if s is None else f'{labels[s]}',
-                        help='Centers the map on one gauge and shows its numbers.')
-
-    mean_flow = {k: (float(m) if pd.notna(m := g['flow_cfs'].mean()) else 0.0) for k, g in A._groups(df).items()}
-    feats = [f for f in reaches()['features'] if f['properties']['site_no'] in labels]
-    # Draw "below the gauge" stretches first (small rivers first so a big river's color wins
-    # below a confluence), then each gauge's own reach with big rivers first and small on top.
-    # Lines that share a color and width go in one trace so the map stays quick with 200 gauges.
-    feats.sort(key=lambda f: (not f['properties'].get('below', False),
-                              mean_flow.get(f['properties']['site_no'], 0) * (1 if f['properties'].get('below') else -1)))
+    # Each stretch of river now has one owner, so draw order doesn't matter and lines can be
+    # batched by color and width. That keeps the map to a few dozen traces.
+    mean_flow = mean_flows(DATA_KEY)
+    style = basemap()
+    names_layer = next((x['id'] for x in style['layers'] if x['type'] == 'symbol'), '')   # rivers go under town names
+    feats = [f for f in reaches()['features'] if f['properties']['site_no'] in in_view]
     fig = go.Figure()
-    batch_key, lon, lat = None, [], []
-
-    def flush():
-        if lon:
-            t, w = batch_key
-            fig.add_trace(go.Scattermap(lon=lon, lat=lat, mode='lines', hoverinfo='skip', showlegend=False,
-                                        line=dict(color=T.OFF_SEASON if t is None else T.diverging_color(t), width=w)))
-
+    batches: dict = {}
     for f in feats:
         sn = f['properties']['site_no']
-        w = round(0.9 + 0.75 * math.log10(max(mean_flow.get(sn, 10), 10)), 1)
-        k = (color_of(sn), w)
-        if k != batch_key:
-            flush()
-            batch_key, lon, lat = k, [], []
-        for line in f['geometry']['coordinates']:
-            lon += [p[0] for p in line] + [None]
-            lat += [p[1] for p in line] + [None]
-    flush()
+        flow = mean_flow.get(sn, 0)
+        line = batches.setdefault((color_of(sn), 3.2 if flow >= 1000 else (2.2 if flow >= 100 else 1.5)), ([], []))
+        for part in f['geometry']['coordinates']:
+            line[0].extend([p[0] for p in part] + [None])
+            line[1].extend([p[1] for p in part] + [None])
+    # Pale "no reading" lines first, then thin to thick, so the big rivers read on top
+    for (t, w), (lon, lat) in sorted(batches.items(), key=lambda kv: (kv[0][0] is not None, kv[0][1])):
+        fig.add_trace(go.Scattermap(lon=lon, lat=lat, mode='lines', hoverinfo='skip', showlegend=False, below=names_layer,
+                                    line=dict(color=T.OFF_SEASON if t is None else T.diverging_color(t), width=w)))
 
     site_xy = sites.set_index('site_no')
     site_xy = site_xy[pd.to_numeric(site_xy['lon'], errors='coerce').notna()]
-    mk = [s for s in order_all if s in site_xy.index]
+    mk = [s for s in order if s in site_xy.index]
     vals = [metric(rows[s]) if s in rows else None for s in mk]
 
     def tip(s, v):
         r = rows.get(s)
         sym, word = state(v)
-        head = f"<b>{T.esc(labels[s])}</b><br>"
+        head_ = f"<b>{T.esc(labels[s])}</b><br>"
         if r is None:
-            return head + 'No reading near this date (seasonal gauge or off)'
+            return head_ + 'No reading near this date (seasonal gauge or off)'
         if mode == 'Change':
             ch = 'under 1 cfs, no %' if r['change_pct'] is None else f"{r['change_pct']:+.0f}%"
-            return (head + f"{sym} {word} {ch}<br>{r['start_cfs']:,.0f} → {r['end_cfs']:,.0f} cfs"
+            return (head_ + f"{sym} {word} {ch}<br>{r['start_cfs']:,.0f} → {r['end_cfs']:,.0f} cfs"
                     f"<br>{T.date(r['start_date'], False)} to {T.date(r['end_date'])}")
         pm = 'no normal yet' if r['pct_of_median'] is None else f"{r['pct_of_median']:.0f}% of normal"
-        return head + f"{sym} {word}: {pm}<br>{r['end_cfs']:,.0f} cfs on {T.date(r['end_date'])}"
+        return head_ + f"{sym} {word}: {pm}<br>{r['end_cfs']:,.0f} cfs on {T.date(r['end_date'])}"
 
     lons, lats = pd.to_numeric(site_xy.loc[mk, 'lon']), pd.to_numeric(site_xy.loc[mk, 'lat'])
-    fig.add_trace(go.Scattermap(lon=lons, lat=lats, mode='markers', marker=dict(size=12, color='white'),
+    crowded = PHONE and region == 'All Montana'      # 199 dots on a phone: smaller, and too small for a mark
+    fig.add_trace(go.Scattermap(lon=lons, lat=lats, mode='markers', marker=dict(size=8 if crowded else 13, color='white'),
                                 hoverinfo='skip', showlegend=False))
-    fig.add_trace(go.Scattermap(
-        lon=lons, lat=lats, mode='markers',
-        marker=dict(size=8.5, color=[T.OFF_SEASON if v is None else T.diverging_color(to_t(v)) for v in vals]),
-        text=[tip(s, v) for s, v in zip(mk, vals)], hoverinfo='text', showlegend=False))
-
-    # Label only the biggest movers in view, with the sign spelled out, so labels don't pile up
-    live = [r for r in fc.value if r['site_no'] in in_view and metric(r) is not None]
-    if mode == 'Change':
-        movers = sorted([r for r in live if r['change_pct'] <= -5], key=metric)[:4] + \
-                 sorted([r for r in live if r['change_pct'] >= 5], key=metric, reverse=True)[:4]
-        lab = lambda r: f"{r['change_pct']:+.0f}%"
-    else:
-        movers = sorted([r for r in live if r['pct_of_median'] <= 90], key=metric)[:4] + \
-                 sorted([r for r in live if r['pct_of_median'] >= 110], key=metric, reverse=True)[:4]
-        lab = lambda r: f"{r['pct_of_median']:.0f}%"
-    movers = [r for r in movers if r['site_no'] in site_xy.index]
-    if movers:
-        fig.add_trace(go.Scattermap(
-            lon=[float(site_xy.loc[r['site_no'], 'lon']) for r in movers],
-            lat=[float(site_xy.loc[r['site_no'], 'lat']) for r in movers],
-            mode='text', text=[lab(r) for r in movers], textposition='top right',
-            textfont=dict(size=12, color=T.INK), hoverinfo='skip', showlegend=False))
+    fig.add_trace(go.Scattermap(lon=lons, lat=lats, mode='markers', hoverinfo='skip', showlegend=False,
+                                marker=dict(size=6 if crowded else 10, color=[shade(v) for v in vals])))
+    # The dot's own direction mark, so a colorblind reader can see it without hovering
+    marked = [(x, y, '+' if state(v)[0] == '▲' else '-') for x, y, v in zip(lons, lats, vals)
+              if state(v)[0] in ('▲', '▼')]
+    if marked and not crowded:
+        fig.add_trace(go.Scattermap(lon=[m[0] for m in marked], lat=[m[1] for m in marked], mode='markers+text',
+                                    text=[m[2] for m in marked], textposition='middle center', hoverinfo='skip',
+                                    marker=dict(size=1, opacity=0),
+                                    textfont=dict(size=11, color='white'), showlegend=False))
 
     clat, clon, zoom = config.REGION_VIEW.get(region, config.REGION_VIEW['All Montana'])
-    if find:
+    zoom -= 1.4 if PHONE else 0
+
+    # Label the biggest movers. Skip any that would land on a label already placed.
+    live_mk = [r for r in live if r['site_no'] in site_xy.index]
+    low_first = sorted((r for r in live_mk if state(metric(r))[0] == '▼'), key=metric)
+    high_first = sorted((r for r in live_mk if state(metric(r))[0] == '▲'), key=metric, reverse=True)
+    gap = 80 * 360 / (512 * 2 ** zoom)        # about 80 px, in degrees
+    placed = []
+    for r in [x for pair in zip(low_first, high_first) for x in pair] + low_first + high_first:
+        x, y = float(site_xy.loc[r['site_no'], 'lon']), float(site_xy.loc[r['site_no'], 'lat'])
+        if len(placed) < 8 and all(abs(x - p[0]) > gap or abs(y - p[1]) > gap / 2 for p in placed):
+            placed.append((x, y, fmt(metric(r))))
+    if placed:
+        # mode 'text' alone has no marker size, so Plotly can't offset the text and the layer fails
+        fig.add_trace(go.Scattermap(lon=[p[0] for p in placed], lat=[p[1] for p in placed], mode='markers+text',
+                                    text=[p[2] for p in placed], textposition='top right', hoverinfo='skip',
+                                    marker=dict(size=10, opacity=0),
+                                    textfont=dict(size=12.5, color=T.INK), showlegend=False))
+
+    has_xy = find in site_xy.index
+    if find and has_xy:
         flat, flon = float(site_xy.loc[find, 'lat']), float(site_xy.loc[find, 'lon'])
         fig.add_trace(go.Scattermap(lon=[flon], lat=[flat], mode='markers', hoverinfo='skip', showlegend=False,
-                                    marker=dict(size=22, color=T.INK, opacity=.85)))
+                                    marker=dict(size=24, color=T.INK, opacity=.85)))
         fig.add_trace(go.Scattermap(lon=[flon], lat=[flat], mode='markers', hoverinfo='skip', showlegend=False,
-                                    marker=dict(size=15, color='white')))
+                                    marker=dict(size=17, color='white')))
         v = metric(rows[find]) if find in rows else None
-        fig.add_trace(go.Scattermap(lon=[flon], lat=[flat], mode='markers', hoverinfo='text', showlegend=False,
-                                    text=[tip(find, v)],
-                                    marker=dict(size=10, color=T.OFF_SEASON if v is None else T.diverging_color(to_t(v)))))
-        clat, clon, zoom = flat, flon, 8.3
-    fig.update_layout(map=dict(style='carto-positron', center=dict(lat=clat, lon=clon), zoom=zoom),
-                      height=600, margin=dict(l=0, r=0, t=0, b=0), uirevision=f'{region}-{find}',
+        fig.add_trace(go.Scattermap(lon=[flon], lat=[flat], mode='markers', hoverinfo='skip', showlegend=False,
+                                    marker=dict(size=11, color=shade(v))))
+        if find != ss.get('map_clicked'):     # picked from the list: go there. Clicked: already looking at it.
+            clat, clon, zoom = flat, flon, 8.3 - (.5 if PHONE else 0)
+    # Invisible, wider than the dots, and last: an easy target for a finger or a mouse
+    fig.add_trace(go.Scattermap(lon=lons, lat=lats, mode='markers', marker=dict(size=26, color=T.INK, opacity=.01),
+                                text=[tip(s, v) for s, v in zip(mk, vals)], hoverinfo='text', customdata=mk,
+                                unselected=dict(marker=dict(opacity=.01)), selected=dict(marker=dict(opacity=.01)),
+                                showlegend=False))
+    fig.update_layout(map=dict(style=style, center=dict(lat=clat, lon=clon), zoom=zoom),
+                      height=440 if PHONE else 620, margin=dict(l=0, r=0, t=0, b=0),
+                      uirevision=f'{region}-{find if find != ss.get("map_clicked") else "click"}',
                       hoverlabel=dict(bgcolor=T.SURFACE, bordercolor=T.RULE, font=dict(color=T.INK, size=13)))
+
+    with st.container(key='mapbox', gap=None):
+        st.markdown(
+            f'<div class="rr-legend" role="note" aria-label="Map legend">'
+            f'<div class="what">{what}{hist_note} Each river takes the color of the gauge just below it.</div>'
+            f'<div class="ramp" aria-hidden="true"><div class="bar" style="background:{T.ramp_css()}"></div>'
+            f'<div class="ticks">' + ''.join(f'<span>{t}</span>' for t in ticks) + '</div></div>'
+            '<div class="keys">' + ''.join(
+                f'<span class="key"><span class="rr-sym" style="color:{c}" aria-hidden="true">{sym}</span>{T.esc(lab)}</span>'
+                for sym, c, lab in keys) + '</div></div>', unsafe_allow_html=True)
+        st.plotly_chart(fig, width='stretch', key='map_chart', on_select='rerun', selection_mode='points',
+                        config={'displaylogo': False, 'scrollZoom': not PHONE, 'displayModeBar': True,
+                                'modeBarButtonsToRemove': ['toImage', 'pan2d', 'select2d', 'lasso2d']})
+    if style is T.BLANK_MAP:
+        T.note('The background map could not load, so towns and roads are missing. Rivers and gauges are unaffected.')
+    if not feats:
+        T.note('River lines did not load, so the map shows gauge dots only. The table below is unaffected.',
+               error=True)
+    st.caption(('Pinch to zoom, or use the + and - buttons. Tap a gauge for its numbers. ' if PHONE else
+                'Drag to pan. Scroll or use the + and - buttons to zoom. Hover a gauge for its numbers, click to '
+                'select it. ')
+               + ('Pick a region to see + and - marks in the dots. ' if crowded else 'A + or - in a dot shows direction. ')
+               + 'Labels mark the biggest movers. If the background map does '
+                 'not load, rivers and gauges still draw, and the table below lists every reading.')
 
     if find:
         r = rows.get(find)
@@ -412,41 +506,17 @@ if page.endswith('Map'):
                     f'<div class="name">{T.esc(labels[find])}</div>'
                     f'<div class="meta">USGS {find} · {T.esc(reg_of.get(find, ""))}</div>'
                     f'<div class="row">{body}</div></div>', unsafe_allow_html=True)
+        if not has_xy:
+            st.caption('This gauge has no map location in the sites file, so it is not on the map.')
 
         def open_history(sn=find):
-            ss['page'] = '3  History'
+            ss['page'] = 'History'
             ss['hist_gauge'] = sn
         st.button('Open this gauge in History', on_click=open_history, key='map_to_hist')
 
-    if not feats:
-        T.note('River lines did not load, so the map shows gauge dots only. The numbers below are unaffected.',
-               error=True)
-    st.plotly_chart(fig, width='stretch', config={'displayModeBar': False, 'scrollZoom': True,
-                                                   'displaylogo': False})
-    st.caption('Drag to pan, scroll or pinch to zoom. Hover or tap a gauge dot for its numbers. Labeled dots '
-               'are the biggest movers in view. If the background map does not load, rivers and gauges '
-               'still draw, and the table below lists every reading.')
-
-    if live:
-        lo = min(live, key=metric)
-        hi = max(live, key=metric)
-        fmt = (lambda v: f'{v:+.0f}%') if mode == 'Change' else (lambda v: f'{v:.0f}%')
-        if mode == 'Change':
-            k1 = ('▲ Rising 5%+', sum(1 for r in live if r['change_pct'] >= 5))
-            k2 = ('▼ Dropping 5%+', sum(1 for r in live if r['change_pct'] <= -5))
-        else:
-            k1 = ('▲ Above normal', sum(1 for r in live if r['pct_of_median'] >= 110))
-            k2 = ('▼ Below normal', sum(1 for r in live if r['pct_of_median'] <= 90))
-        T.stats([(k1[0], str(k1[1]), f'of {len(live)} gauges'), (k2[0], str(k2[1]), f'of {len(live)} gauges'),
-                 ('Biggest drop' if mode == 'Change' else 'Lowest', fmt(metric(lo)), lo['gauge']),
-                 ('Biggest rise' if mode == 'Change' else 'Highest', fmt(metric(hi)), hi['gauge'])])
-    else:
-        T.note('No gauges in this region had a reading near this date. Try a date in spring or summer, or '
-               'pick another region.')
-
-    T.figure(1, 'Every gauge, ranked',
-             f"{'Change over ' + str(window) + ' days' if mode == 'Change' else 'Percent of normal'} "
-             f'ending {end_label}, {WHERE}.')
+    T.section('Every gauge, ranked',
+              f"{'Change over ' + str(window) + ' days' if mode == 'Change' else 'Percent of normal'} "
+              f'ending {end_label}, {WHERE}.')
     ranked = sorted((r for r in fc.value if r['site_no'] in in_view),
                     key=lambda r: (metric(r) is None, metric(r) or 0))
     default('map_all', False)
@@ -456,8 +526,7 @@ if page.endswith('Map'):
     for r in shown:
         v = metric(r)
         sym, word = state(v)
-        sw = T.OFF_SEASON if v is None else T.diverging_color(to_t(v))
-        trows.append({'dir_html': f'<span style="color:{sw};font-weight:700" aria-hidden="true">{sym}</span> {word}',
+        trows.append({'dir_html': f'<span style="color:{shade(v)};font-weight:700" aria-hidden="true">{sym}</span> {word}',
                       'gauge': r['gauge'], 'river': r['river'],
                       'start': f"{r['start_cfs']:,.0f}", 'end': f"{r['end_cfs']:,.0f}",
                       'chg': '–' if r['change_pct'] is None else f"{r['change_pct']:+.0f}%",
@@ -481,7 +550,7 @@ if page.endswith('Map'):
 
 elif page.endswith('Today'):
     cc = conditions_cached(DATA_KEY, tuple(order))
-    rows = cc.value
+    rows = cc.value if order else []       # an empty list means "every gauge" to current_conditions
     T.masthead(WHERE, f'Rivers on {LAST:%A}, {T.date(LAST)}',
                'The newest daily mean flow at each gauge, next to what is normal for that date. '
                '"Normal" is the median for the same calendar day across the gauge\'s other years.')
@@ -489,22 +558,32 @@ elif page.endswith('Today'):
     if not rows:
         T.note('No gauges in this region have a recent reading. Seasonal gauges shut off in fall and winter.')
         st.stop()
-    near = [r for r in rows if r['pct_of_median'] is not None] or rows
-    hi = max(near, key=lambda r: r['pct_of_median'] or 0)
-    lo = min(near, key=lambda r: r['pct_of_median'] or 0)
-    temps = [r for r in rows if r['water_temp_max_f'] is not None and r['site_no'] not in config.THERMAL]
-    warm = max(temps, key=lambda r: r['water_temp_max_f']) if temps else None
-    gg = next((r for r in rows if r['site_no'] == '06043500'), max(rows, key=lambda r: r['flow_cfs']))
-    pm = lambda r: '–' if r['pct_of_median'] is None else f"{r['pct_of_median']:.0f}%"
-    T.stats([
-        (gg['gauge'], f"{gg['flow_cfs']:,.0f} cfs",
-         f"{gg['pct_of_median']:.0f}% of normal" if gg['pct_of_median'] else ''),
-        ('Highest vs normal', pm(hi), hi['gauge']),
-        ('Lowest vs normal', pm(lo), lo['gauge']),
-        ('Warmest water', f"{warm['water_temp_max_f']:.0f}°F" if warm else '–', warm['gauge'] if warm else 'no sensors'),
-    ])
+    # Seasonal gauges keep their last reading from weeks ago. It stays in the table, marked,
+    # but it can't be today's highest, lowest or warmest.
+    cutoff = LAST - pd.Timedelta(days=3)
+    is_current = lambda r: pd.Timestamp(r['date']) >= cutoff
+    fresh = [r for r in rows if is_current(r)]
+    if fresh:
+        near = [r for r in fresh if r['pct_of_median'] is not None]
+        hi = max(near, key=lambda r: r['pct_of_median']) if near else None
+        lo = min(near, key=lambda r: r['pct_of_median']) if near else None
+        temps = [r for r in fresh if r['water_temp_max_f'] is not None and r['site_no'] not in config.THERMAL]
+        warm = max(temps, key=lambda r: r['water_temp_max_f']) if temps else None
+        gg = next((r for r in fresh if r['site_no'] == '06043500'), max(fresh, key=lambda r: r['flow_cfs']))
+        pm = lambda r: '–' if r is None else f"{r['pct_of_median']:.0f}%"
+        T.stats([
+            (gg['gauge'], f"{gg['flow_cfs']:,.0f} cfs",
+             '' if gg['pct_of_median'] is None else f"{gg['pct_of_median']:.0f}% of normal"),
+            ('Highest vs normal', pm(hi), hi['gauge'] if hi else 'no normal yet'),
+            ('Lowest vs normal', pm(lo), lo['gauge'] if lo else 'no normal yet'),
+            ('Warmest water', f"{warm['water_temp_max_f']:.0f}°F" if warm else '–',
+             warm['gauge'] if warm else 'no recent sensor reading'),
+        ])
+    else:
+        T.note(f'No gauge here has a reading from the 3 days before {T.date(LAST)}. The table shows the last '
+               'reading from each one.')
 
-    T.figure(2, 'Every gauge, today', 'Percent of median: under 75% is low for the date, over 130% is high.')
+    T.section('Every gauge, today', 'Percent of median: under 75% is low for the date, over 130% is high.')
     trows, group = [], None
     group_by = 'river' if region != 'All Montana' else 'region'
     pos = {s: i for i, s in enumerate(order)}
@@ -519,14 +598,16 @@ elif page.endswith('Today'):
                       'pct_html': pct_label(r['pct_of_median']),
                       'chg': '–' if ch is None else f'{ch:+.0f}%',
                       'temp': '–' if r['water_temp_max_f'] is None else f"{r['water_temp_max_f']:.0f}°F",
-                      'date': T.date(r['date'], False), 'flags': flags})
+                      'date_html': T.esc(T.date(r['date'], False)) if is_current(r) else
+                      f'<span class="rr-pill warn">{T.esc(T.date(r["date"]))}</span>', 'flags': flags})
     T.table(trows, [('gauge', 'Gauge'), ('flow', 'Flow cfs'), ('median', 'Normal cfs'), ('pct_html', 'Vs normal'),
-                    ('chg', '7-day'), ('temp', 'Water max'), ('date', 'Reading'), ('flags', 'Notes')],
+                    ('chg', '7-day'), ('temp', 'Water max'), ('date_html', 'Reading'), ('flags', 'Notes')],
             num=('flow', 'median', 'chg', 'temp'))
-    stale_c = [c for c in cc.caveats if 'Not current' in c]
+    old = len(rows) - len(fresh)
+    if old:
+        st.caption(f'{old} of {len(rows)} gauges have no reading from the last 3 days. Their last reading is '
+                   'marked in the Reading column and is left out of the numbers at the top.')
     shaky = [c for c in cc.caveats if 'shaky' in c]
-    if stale_c:
-        st.caption(stale_c[0])
     if shaky:
         st.caption(f'{len(shaky)} gauge(s) have fewer than {A.MIN_NORMAL_YEARS} other years on record, so their '
                    '"normal" is rough.')
@@ -534,7 +615,7 @@ elif page.endswith('Today'):
                f'left blank where normal flow is under {A.MIN_CHANGE_CFS:g} cfs. Warmest water leaves out '
                + ' and '.join(config.THERMAL.values()) + '.')
 
-    T.figure(3, 'This water year against the record')
+    T.section('This water year against the record')
     keep_valid('today_gauge', order)
     default('today_gauge', order[pick_default(order)])
     pick = st.selectbox('Gauge', order, format_func=labels.get, key='today_gauge')
@@ -583,14 +664,14 @@ elif page.endswith('History'):
     if 'Madison' in labels[pick]:
         st.caption('The Madison is dam-regulated (Hebgen and Ennis), so its runoff is partly managed.')
 
-    T.figure(4, 'When the river peaked each year', 'Dot size is the peak flow. Earlier dots = earlier runoff.')
+    T.section('When the river peaked each year', 'Dot size is the peak flow. Earlier dots = earlier runoff.')
     pf = full.copy()
     pf['day'] = pd.to_datetime('2001-01-01') + pd.to_timedelta(pf['peak_day_of_year'] - 1, unit='D')
     fig = go.Figure(go.Scatter(
         x=pf['water_year'], y=pf['day'], mode='markers',
-        marker=dict(size=(pf['peak_cfs'] / pf['peak_cfs'].max() * 26 + 6), color=T.RIVER, opacity=.75,
+        marker=dict(size=(pf['peak_cfs'] / max(pf['peak_cfs'].max(), 1) * 26 + 6), color=T.RIVER, opacity=.75,
                     line=dict(color=T.PAPER, width=1)),
-        customdata=pf[['peak_cfs', 'peak_date']], hovertemplate='WY %{x}: %{customdata[0]:,.0f} cfs on %{customdata[1]}<extra></extra>'))
+        customdata=list(zip(pf['peak_cfs'], pf['peak_date'].map(T.date))), hovertemplate='WY %{x}: %{customdata[0]:,.0f} cfs on %{customdata[1]}<extra></extra>'))
     fig.update_layout(height=320, yaxis=dict(tickformat='%b %d', title='Peak date'),
                       xaxis=dict(title='Water year', tickformat='d'))
     if pf.empty:
@@ -600,7 +681,7 @@ elif page.endswith('History'):
 
     c1, c2 = st.columns([1, 1], gap='large')
     with c1:
-        T.figure(5, 'Typical flow by month')
+        T.section('Typical flow by month')
         m = pd.DataFrame(A.monthly_flow(df, pick).value)
         mo = ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep']
         m = m.set_index('month').reindex(mo).reset_index()
@@ -610,11 +691,14 @@ elif page.endswith('History'):
         fig.update_layout(height=300, yaxis_title='Median flow (cfs)', margin=dict(t=24))
         st.plotly_chart(fig, width='stretch', config={'displayModeBar': False})
     with c2:
-        T.figure(6, 'Any window vs every earlier year')
+        T.section('Any window vs every earlier year')
         g = A._gauge(df, pick)
-        default('hist_win', ((LAST - pd.Timedelta(days=29)).date(), LAST.date()))
-        if isinstance(ss['hist_win'], tuple) and ss['hist_win'] and ss['hist_win'][0] < g['date'].min().date():
-            ss['hist_win'] = ((LAST - pd.Timedelta(days=29)).date(), LAST.date())
+        lo_d, hi_d = g['date'].min().date(), LAST.date()
+        last_30 = (clamp((LAST - pd.Timedelta(days=29)).date(), lo_d, hi_d), hi_d)
+        default('hist_win', last_30)
+        # A date outside this gauge's record, or past newer-than-loaded data, is an error in the widget
+        if any(not lo_d <= d <= hi_d for d in ss['hist_win'] or ()):
+            ss['hist_win'] = last_30
         d0 = st.date_input('Window (pick a start and an end)', min_value=g['date'].min(), max_value=LAST,
                            key='hist_win', format='MM/DD/YYYY')
         if not (isinstance(d0, tuple) and len(d0) == 2):
@@ -627,8 +711,8 @@ elif page.endswith('History'):
                 v = r.value
                 T.stats([('Window mean', T.cfs(v['window_mean_cfs']), 'cfs'),
                          ('Normal', T.cfs(v['median_of_other_years_cfs']), 'cfs median'),
-                         ('Percent', f"{v['pct_of_median']:.0f}%", 'of normal'),
-                         ('Rank', v['rank'].split(' (')[0], '1 = wettest')])
+                         ('Percent', '–' if v['pct_of_median'] is None else f"{v['pct_of_median']:.0f}%", 'of normal'),
+                         ('Rank', v['rank'].split(' (')[0], '1 = highest flow')])
                 for c in r.caveats:
                     st.caption(c)
 
@@ -648,12 +732,15 @@ elif page.endswith('Water temp'):
     pick = st.selectbox('Gauge (only gauges with a recent temperature sensor)', with_temp,
                         format_func=labels.get, key='temp_gauge')
     by = A.hot_water_by_year(df, pick)
+    if by.error:
+        T.note(by.error, error=True)
+        st.stop()
     yrs = pd.DataFrame(by.value)
     yrs = yrs[yrs['summer_days_with_temp'] >= 60]
     if yrs.empty:
         T.note(f'{labels[pick]} has no summer with 60 or more days of temperature readings yet.')
         st.stop()
-    T.figure(7, 'Days at or above 73°F, by year', 'Years with fewer than 60 summer readings are left out.')
+    T.section('Days at or above 73°F, by year', 'Years with fewer than 60 summer readings are left out.')
     fig = go.Figure(go.Bar(x=yrs['year'], y=yrs['days_at_or_above'],
                            marker_color=[T.HOT if d > 0 else T.RULE for d in yrs['days_at_or_above']],
                            text=yrs['days_at_or_above'], textposition='outside',
@@ -675,13 +762,13 @@ elif page.endswith('Water temp'):
                  ('Hottest', f"{v['hottest_f']:.1f}°F", T.date(v['hottest_date'], False)),
                  ('3+ day runs', str(len(v['runs_of_3_plus_days'])), 'consecutive hot days'),
                  ('Readings', str(v['days_with_temp']), 'days with a temp')])
-        T.figure(8, f'Daily water temperature, {year}')
+        T.section(f'Daily water temperature, {year}')
         g = A._gauge(df, pick)
         g = g[g['year'] == year]
         fig = go.Figure()
         for a in v['runs_of_3_plus_days']:
             fig.add_vrect(x0=a['from'], x1=pd.Timestamp(a['to']) + pd.Timedelta(days=1),
-                          fillcolor='#f3dfd3', line_width=0, layer='below')
+                          fillcolor=T.HOT_BAND, line_width=0, layer='below')
         fig.add_trace(go.Scatter(x=g['date'], y=g['temp_mean_f'], name='Daily mean',
                                  line=dict(color=T.RIVER_LIGHT, width=1.4)))
         fig.add_trace(go.Scatter(x=g['date'], y=g['temp_max_f'], name='Daily max',
@@ -721,16 +808,14 @@ elif page.endswith('Ask'):
                 ss.answers.insert(0, agent.answer_question(q, df, key, models, notes))
     for a in ss.answers:
         st.markdown(f'<div class="rr-entry"><div class="q">{T.esc(a["question"])}</div>'
-                    f'<div style="color:#6b7375;font-size:.8rem">Scope: {T.esc(a["scope"])} · {T.esc(a["mode"])}</div>'
+                    f'<div class="scope">Scope: {T.esc(a["scope"])} · {T.esc(a["mode"])}</div>'
                     '</div>', unsafe_allow_html=True)
         for f in a['flags']:
             T.note(f)
-        st.markdown('<div class="rr-entry" style="border:none;padding:0"><div class="lab">Findings</div></div>',
-                    unsafe_allow_html=True)
+        T.label('Findings')
         st.markdown(a['findings'].replace('$', r'\$').replace('\n', '  \n'))
         if a.get('interpretation'):
-            st.markdown('<div class="rr-entry" style="border:none;padding:0"><div class="lab">Interpretation</div></div>',
-                        unsafe_allow_html=True)
+            T.label('Interpretation')
             st.markdown(a['interpretation'].replace('$', r'\$'))
         if a.get('caveats'):
             st.caption('Caveats: ' + ' '.join(a['caveats']).replace('$', r'\$'))
@@ -758,7 +843,7 @@ else:
              ('First reading', T.date(df['date'].min()), ''),
              ('Newest reading', T.date(LAST), ss.data_origin)])
 
-    T.figure(9, 'Get the latest from USGS',
+    T.section('Get the latest from USGS',
              f'Pulls the last {config.REFRESH_DAYS} days from the USGS Water Data API and lays it over the '
              'snapshot (recent provisional values get revised).')
     c1, c2 = st.columns([1, 2])
@@ -769,7 +854,7 @@ else:
             merged = dp.merge_refresh(dp.read_csv(ss.daily_bytes), fresh)
             buf = io.StringIO()
             merged.to_csv(buf, index=False)
-            ss.daily_bytes = buf.getvalue().encode()
+            ss.daily_bytes = gzip.compress(buf.getvalue().encode(), 1)     # 10x less memory per visitor
             now = pd.Timestamp.now(tz='America/Denver')
             ss.daily_src = 'Snapshot + USGS refresh'
             ss.data_origin = f'refreshed from USGS {T.date(now)} at {now:%-I:%M %p} MT'
@@ -781,49 +866,54 @@ else:
     c2.caption('Without a USGS API key, USGS allows only a few requests per hour. A free key goes in '
                'the app secrets as USGS_API_KEY.')
 
-    T.figure(10, 'Upload changed data', 'Replaces just that table. Use this for the validation tests.')
-    up = st.file_uploader('Daily values or sites file (CSV, or CSV.GZ)', type=['csv', 'gz'], key='upload')
+    T.section('Upload changed data', 'Replaces just that table. Use this for the validation tests.')
+    up = st.file_uploader('Daily values or sites file (CSV, or CSV.GZ)', type=['csv', 'gz'],
+                          key=f'upload{ss.get("upload_n", 0)}')
     if up is not None:
         h = hashlib.md5(up.getvalue()).hexdigest()
         if ss.get('last_upload') != h:
             name = up.name.lower()
-            if any(k in name for k in config.FILES['sites']):
-                ss.sites_bytes, ss.sites_src = up.getvalue(), f'Uploaded {up.name}'
-            elif any(k in name for k in config.FILES['daily']):
-                ss.daily_bytes, ss.daily_src = up.getvalue(), f'Uploaded {up.name}'
-                ss.data_origin = f'uploaded file {up.name}'
+            if not any(k in name for k in config.FILES['sites'] + config.FILES['daily']):
+                T.note('The file name must contain "daily" or "sites" so the app knows which table it replaces.',
+                       error=True)
+            elif any(k in name for k in config.FILES['sites']):
+                ss.sites_bytes, ss.sites_src, ss.last_upload = up.getvalue(), f'Uploaded {up.name}', h
+                st.rerun()
             else:
-                T.note('File name must contain "daily" or "sites" so the app knows which table it replaces.')
-                st.stop()
-            ss.last_upload = h
-            st.rerun()
+                ss.daily_bytes, ss.daily_src, ss.last_upload = up.getvalue(), f'Uploaded {up.name}', h
+                ss.data_origin = f'uploaded file {up.name}'
+                st.rerun()
     if st.button('Restore original data'):
         ss.daily_bytes = (ROOT / 'data' / 'daily_values.csv.gz').read_bytes()
         ss.sites_bytes = (ROOT / 'data' / 'sites.csv').read_bytes()
         ss.daily_src, ss.sites_src, ss.last_upload = 'Snapshot in data/daily_values.csv.gz', 'data/sites.csv', None
+        ss.pop('csv_ready', None)
+        ss.upload_n = ss.get('upload_n', 0) + 1
         ss.data_origin = snapshot_origin()
         st.rerun()
     tot = df['flow_cfs'].sum()
     st.caption(f'Check sum: total of all daily flows = {tot:,.0f} cfs-days. Sites from {ss.sites_src}.')
 
-    T.figure(11, 'Load notes', 'Anything odd the app found while loading. Nothing is dropped without a note here.')
+    T.section('Load notes', 'Anything odd the app found while loading. Nothing is dropped without a note here.')
     for n in notes:
         T.note(n['message'], ok=n['level'] == 'ok')
     if SNAP:
-        st.caption(f"Snapshot: {SNAP.get('source', '')}. Downloaded {T.date(SNAP['downloaded'])}. "
+        st.caption(f"Snapshot: {SNAP.get('source', '')}. Downloaded {T.date(SNAP['downloaded']) if SNAP.get('downloaded') else 'date unknown'}. "
                    f"{SNAP.get('note', '')}")
 
-    T.figure(12, 'Data quality by gauge',
+    T.section('Data quality by gauge',
              'Provisional = not yet reviewed by USGS. Estimated days are mostly winter ice.')
-    q = A.data_quality_report(df, notes).value['gauges']
-    for row in q:
-        row['first'], row['last'] = T.date(row['first']), T.date(row['last'])
+    q = [{**row, 'first': T.date(row['first']), 'last': T.date(row['last'])} for row in quality_cached(DATA_KEY)]
     T.table(q, [('gauge', 'Gauge'), ('first', 'First'), ('last', 'Last'), ('missing_flow_days', 'Missing'),
                 ('provisional_pct', 'Prov. %'), ('estimated_days', 'Estimated'), ('ice_days', 'Ice'),
                 ('temp_days', 'Temp days')],
             num=('missing_flow_days', 'provisional_pct', 'estimated_days', 'ice_days', 'temp_days'))
-    st.download_button(f'Download daily data for {region} (CSV)', region_csv(DATA_KEY, region),
-                       f"daily_values_{region.lower().replace(' ', '_')}.csv", 'text/csv')
+    # Building the CSV takes seconds, so it waits for a click instead of slowing every visit to this page
+    want = (DATA_KEY, region)
+    if ss.get('csv_ready') == want or st.button(f'Prepare daily data for {region} (CSV)'):
+        ss.csv_ready = want
+        st.download_button(f'Download daily data for {region} (CSV)', region_csv(DATA_KEY, region),
+                           f"daily_values_{region.lower().replace(' ', '_')}.csv", 'text/csv')
 
 T.colophon('Data: U.S. Geological Survey daily values (NWIS), refreshed through the USGS Water Data API. '
            'River lines: USGS NHDPlus via NLDI. Basemap: © OpenStreetMap contributors, © CARTO. '

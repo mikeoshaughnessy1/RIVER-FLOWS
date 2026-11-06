@@ -2,9 +2,15 @@
 base = "light"
 primaryColor = "#2e5140"
 backgroundColor = "#f5f2eb"
-secondaryBackgroundColor = "#ece7dc"
+secondaryBackgroundColor = "#fbfaf6"
 textColor = "#1b2420"
 font = "sans serif"
+borderColor = "#dcd5c6"
+showWidgetBorder = true
+baseRadius = "6px"
+
+[client]
+toolbarMode = "minimal"
 
 [server]
 maxUploadSize = 50

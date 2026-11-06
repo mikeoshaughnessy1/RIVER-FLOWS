@@ -235,8 +235,10 @@ def compare_to_normal(df, site, start, end) -> ToolResult:
     if not others:
         return ToolResult('compare_to_normal', error=f'No earlier years to compare at {label}.')
     hist = pd.Series([o['mean_cfs'] for o in others])
+    if hist.median() < MIN_CHANGE_CFS:
+        caveats.append(f'Percent of normal is left blank because normal flow is under {MIN_CHANGE_CFS:g} cfs.')
     value = {'window_mean_cfs': float(now.mean()), 'median_of_other_years_cfs': float(hist.median()),
-             'pct_of_median': float(now.mean() / hist.median() * 100),
+             'pct_of_median': float(now.mean() / hist.median() * 100) if hist.median() >= MIN_CHANGE_CFS else None,
              'rank': f'{int((hist > now.mean()).sum()) + 1} of {len(hist) + 1} (1 = highest)',
              'years_compared': len(others), 'wettest': max(others, key=lambda o: o['mean_cfs']),
              'driest': min(others, key=lambda o: o['mean_cfs'])}
@@ -479,7 +481,8 @@ def flow_change(df, as_of: str | None = None, window_days: int = 7, sites: list 
             continue
         end = e.iloc[-1]
         target = end['date'] - pd.Timedelta(days=int(window_days))
-        near = g[(g['date'] - target).abs() <= pd.Timedelta(days=2)]
+        # Start must be before the end, or a gap in a short window compares a day with itself
+        near = g[((g['date'] - target).abs() <= pd.Timedelta(days=2)) & (g['date'] < end['date'])]
         if near.empty:
             missing.append(label)
             continue

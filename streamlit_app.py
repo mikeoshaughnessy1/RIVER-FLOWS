@@ -36,10 +36,18 @@ def fetch_recent(days: int, api_key: str | None, _salt: str):
 
 
 @st.cache_data(show_spinner=False)
-def load_reaches():
+def load_reaches(file_stamp):
+    # file_stamp (size, mtime) is part of the cache key, so a new reaches file is never
+    # hidden behind a cached old one after a redeploy.
     import json
     p = ROOT / 'data' / 'reaches.geojson'
     return json.loads(p.read_text()) if p.exists() else {'features': []}
+
+
+def reaches():
+    p = ROOT / 'data' / 'reaches.geojson'
+    st_ = p.stat() if p.exists() else None
+    return load_reaches((st_.st_size, st_.st_mtime) if st_ else None)
 
 
 def secret(name):
@@ -194,7 +202,7 @@ if page.endswith('Map'):
     # Draw "below the gauge" stretches first (small rivers first so a big river's color wins
     # below a confluence), then each gauge's own reach with big rivers first and small on top.
     # Lines that share a color and width go in one trace so the map stays quick with 200 gauges.
-    feats = [f for f in load_reaches()['features'] if f['properties']['site_no'] in labels]
+    feats = [f for f in reaches()['features'] if f['properties']['site_no'] in labels]
     feats.sort(key=lambda f: (not f['properties'].get('below', False),
                               mean_flow.get(f['properties']['site_no'], 0) * (1 if f['properties'].get('below') else -1)))
     fig = go.Figure()

@@ -310,7 +310,7 @@ NEXT = {
     'low_flow_days': 'Check water temps for the same summer.',
     'compare_gauges': 'Use percent of median, not cfs, when comparing rivers of different sizes.',
     'flow_change': 'Open the Map page and slide the date to watch it move.',
-    'data_quality_report': 'Treat provisional and estimated days with care, especially recent ones.',
+    'data_quality_report': 'Treat estimated and very recent days with care.',
 }
 
 

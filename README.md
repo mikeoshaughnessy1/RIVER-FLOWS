@@ -92,6 +92,6 @@ Then Manage app → Settings → Secrets, paste from `.streamlit/secrets.toml.ex
 
 ## Limits
 
-Gauge data shows what happened, not why, and it doesn't forecast. Recent values are provisional
+Gauge data shows what happened, not why, and it doesn't forecast. USGS can revise recent values
 and USGS revises them. Several gauges have no temperature sensor or only seasonal ones. The
 Madison is dam-controlled. This is not a safety tool and not a source for FWP rules.

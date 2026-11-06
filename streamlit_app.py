@@ -522,7 +522,7 @@ if page.endswith('Map'):
                     + ('n/a' if r['change_pct'] is None else f'{r["change_pct"]:+.0f}%') + '</b>'
                     f' ({r["start_cfs"]:,.0f} cfs on {T.date(r["start_date"], False)})</span>'
                     f'<span>Vs normal <b>' + ('n/a' if r['pct_of_median'] is None else f'{r["pct_of_median"]:.0f}%')
-                    + '</b></span>' + ('<span class="rr-pill warn">Provisional</span>' if r['status'] == 'Provisional' else ''))
+                    + '</b></span>')
         else:
             body = '<span>No reading near this date. Seasonal gauges shut off in fall and winter.</span>'
         st.markdown(f'<div class="rr-card" role="region" aria-label="Selected gauge">'
@@ -616,7 +616,7 @@ elif page.endswith('Today'):
             group = g
             trows.append({'_group': g})
         ch = r['change_7d_pct']
-        flags = ' '.join(x for x in [r['status'] == 'Provisional' and 'provisional', r['flags']] if x)
+        flags = r['flags']
         trows.append({'gauge': r['gauge'], 'flow': T.cfs(r['flow_cfs']), 'median': T.cfs(r['median_cfs']),
                       'pct_html': pct_label(r['pct_of_median']),
                       'chg': '–' if ch is None else f'{ch:+.0f}%',
@@ -634,7 +634,7 @@ elif page.endswith('Today'):
     if shaky:
         st.caption(f'{len(shaky)} gauge(s) have fewer than {A.MIN_NORMAL_YEARS} other years on record, so their '
                    '"normal" is rough.')
-    st.caption('Provisional means USGS has not reviewed the value yet. It can change. Percent of normal is '
+    st.caption('Percent of normal is '
                f'left blank where normal flow is under {A.MIN_CHANGE_CFS:g} cfs. Warmest water leaves out '
                + ' and '.join(config.THERMAL.values()) + '.')
 
@@ -858,7 +858,7 @@ elif page.endswith('Ask'):
 
 else:
     T.masthead('Data', 'Where the numbers come from',
-               f'USGS daily values, provisional and approved, for {df["site_no"].nunique()} gauges from water '
+               f'USGS daily values for {df["site_no"].nunique()} gauges from water '
                'year 2001 on. A reading is the mean flow for one whole day, so the newest one is usually yesterday.')
     status_line()
     T.stats([('Daily rows', f'{len(df):,}', 'one per gauge per day'),
@@ -879,7 +879,7 @@ else:
 
     T.section('Get the latest from USGS',
              f'Pulls the last {config.REFRESH_DAYS} days from the USGS Water Data API and lays it over the '
-             'snapshot (recent provisional values get revised).')
+             'snapshot (USGS revises recent values).')
     c1, c2 = st.columns([1, 2])
     if c1.button('Refresh from USGS', type='primary'):
         try:
@@ -932,12 +932,12 @@ else:
     st.caption(f'Check sum: total of all daily flows = {tot:,.0f} cfs-days. Sites from {ss.sites_src}.')
 
     T.section('Data quality by gauge',
-             'Provisional = not yet reviewed by USGS. Estimated days are mostly winter ice.')
+             'Estimated days are mostly winter ice.')
     q = [{**row, 'first': T.date(row['first']), 'last': T.date(row['last'])} for row in quality_cached(DATA_KEY)]
     T.table(q, [('gauge', 'Gauge'), ('first', 'First'), ('last', 'Last'), ('missing_flow_days', 'Missing'),
-                ('provisional_pct', 'Prov. %'), ('estimated_days', 'Estimated'), ('ice_days', 'Ice'),
+                ('estimated_days', 'Estimated'), ('ice_days', 'Ice'),
                 ('temp_days', 'Temp days')],
-            num=('missing_flow_days', 'provisional_pct', 'estimated_days', 'ice_days', 'temp_days'))
+            num=('missing_flow_days', 'estimated_days', 'ice_days', 'temp_days'))
     # Building the CSV takes seconds, so it waits for a click instead of slowing every visit to this page
     want = (DATA_KEY, region)
     if ss.get('csv_ready') == want or st.button(f'Prepare daily data for {region} (CSV)'):
@@ -947,4 +947,4 @@ else:
 
 T.colophon('Data: U.S. Geological Survey daily values (NWIS), refreshed through the USGS Water Data API. '
            'River lines: USGS NHDPlus via NLDI. Basemap: © OpenStreetMap contributors, © CARTO. '
-           'Recent values are provisional. Not a safety tool; check conditions and FWP rules before you go.')
+           'USGS can revise recent values. Not a safety tool; check conditions and FWP rules before you go.')

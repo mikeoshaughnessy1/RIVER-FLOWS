@@ -161,8 +161,6 @@ def current_conditions(df, sites: list | None = None, as_of: str | None = None) 
         if n is None or n['years'] < MIN_NORMAL_YEARS:
             caveats.append(f'{last["label"]}: fewer than {MIN_NORMAL_YEARS} other years of record, '
                            f'so "normal" is shaky.')
-        if row['status'] == 'Provisional':
-            caveats.append(f'{last["label"]}: latest value is provisional and may be revised.')
         if row['flags']:
             caveats.append(f'{last["label"]}: latest value flagged {row["flags"]}.')
         out.append(row)
@@ -450,7 +448,7 @@ def data_quality_report(df, notes: list | None = None) -> ToolResult:
     value = {'gauges': rows, 'load_notes': [n['message'] for n in (notes or [])]}
     return ToolResult('data_quality_report', value,
                       'Per gauge: missing flow days between its first and last date, share of flow '
-                      'values still provisional, days USGS estimated, ice-affected days, days with '
+                      'values USGS has not reviewed yet, days USGS estimated, ice-affected days, days with '
                       'water temperature.', 'All gauges', len(df))
 
 
@@ -503,8 +501,6 @@ def flow_change(df, as_of: str | None = None, window_days: int = 7, sites: list 
     caveats = []
     if missing:
         caveats.append('No flow near those dates at: ' + ', '.join(missing))
-    if any(r['status'] == 'Provisional' for r in rows):
-        caveats.append('Some end values are provisional and may be revised.')
     if any(r['change_pct'] is None for r in rows):
         caveats.append(f'Percent change is left blank where flow started under {MIN_CHANGE_CFS:g} cfs.')
     if any(r['pct_of_median'] is None for r in rows):

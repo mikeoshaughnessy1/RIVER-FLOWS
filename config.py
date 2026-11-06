@@ -13,7 +13,7 @@ REGION = {r['site_no']: r['region'] for r in _rows}
 REGIONS = ['Southwest', 'Upper Yellowstone', 'Yellowstone Park', 'Western', 'Central', 'Eastern']
 # Map view per region: (center lat, center lon, zoom)
 REGION_VIEW = {
-    'All Montana': (46.9, -109.6, 5.3), 'Southwest': (45.4, -111.8, 6.7),
+    'All Montana': (46.6, -109.9, 5.65), 'Southwest': (45.4, -111.8, 6.7),
     'Upper Yellowstone': (45.4, -109.6, 6.6), 'Yellowstone Park': (44.65, -110.6, 7.8),
     'Western': (47.3, -113.6, 6.2), 'Central': (47.3, -110.6, 6.0), 'Eastern': (46.9, -106.6, 5.8),
 }

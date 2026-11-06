@@ -21,7 +21,7 @@ instead of coffee.
 ## Gauges (199)
 
 Every active Montana river gauge with 10+ years of daily flow (ditches and canals left out), plus
-the Yellowstone Park gauges. A region picker in the sidebar filters every page:
+the Yellowstone Park gauges. A region picker at the top filters every page:
 
 | Region | Gauges | Basin |
 |---|---|---|

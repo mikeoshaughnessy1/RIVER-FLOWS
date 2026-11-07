@@ -367,7 +367,7 @@ if page.endswith('Map'):
     def color_of(sn):
         r = rows.get(sn)
         v = metric(r) if r else None
-        return None if v is None else round(to_t(v) * 40) / 40     # 41 color steps, so the 5% band lands on a step
+        return None if v is None else round(to_t(v) * 40) / 40     # 41 color steps
 
     def shade(v):
         return T.OFF_SEASON if v is None else T.diverging_color(to_t(v))

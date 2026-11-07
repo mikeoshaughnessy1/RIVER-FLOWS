@@ -294,8 +294,8 @@ def cfs(x):
 # Mid-gray neutral instead of a pale one so steady rivers stay visible on the light basemap.
 # Checked for red-green colorblindness: neighbors stay 11+ apart (delta E), all 3:1 on the page.
 DROP, STEADY, RISE = '#9b1c2e', '#8a8983', '#17509e'
-# Map rivers sit on dark imagery, so the ramp is vivid. Yellow is the steady band, within 5% (.45 to .55)
-DIVERGING = [(0.0, '#ff0f3c'), (0.25, '#ff5a00'), (0.44, '#ff9a1f'), (0.45, '#ffe14d'), (0.55, '#ffe14d'), (0.56, '#4fd0ff'), (0.75, '#00a0ff'), (1.0, '#0a3dff')]
+# Smooth heat map ramp, vivid for the dark imagery: green is no change. Not colorblind safe, so dots also carry + and -
+DIVERGING = [(0.0, '#e6002e'), (0.2, '#ff5a00'), (0.38, '#ffd000'), (0.5, '#2fe38a'), (0.62, '#00d0ff'), (0.8, '#0090ff'), (1.0, '#1a2cff')]
 OFF_SEASON = '#8f8b82'
 
 

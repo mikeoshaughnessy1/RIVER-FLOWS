@@ -6,7 +6,7 @@ import config
 
 def test_snapshot_shape(real):
     df, notes = real
-    assert df['date'].min() >= pd.Timestamp(config.START_DATE) and df['site_no'].nunique() == 196
+    assert df['date'].min() >= pd.Timestamp(config.START_DATE) and df['site_no'].nunique() == 184
     assert not df.duplicated(['site_no', 'date']).any()
 
 

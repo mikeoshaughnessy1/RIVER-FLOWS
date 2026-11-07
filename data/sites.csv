@@ -47,7 +47,6 @@ site_no,site_name,river,label,lat,lon,region,drain_area
 06036905,Firehole River near West Yellowstone MT,Firehole,Firehole nr West Yellowstone,44.620183,-110.863503,Yellowstone Park,261.0
 06037100,"Gibbon River at Madison Jct, YNP",Gibbon,Gibbon at Madison Jct,44.6408,-110.861064,Yellowstone Park,125.0
 06188000,Lamar River nr Tower Ranger Station YNP,Lamar,Lamar nr Tower Ranger Station,44.92817778,-110.3942694,Yellowstone Park,668
-06036940,"Tantalus Creek at Norris Junction, YNP",Tantalus Creek,Tantalus Cr at Norris Junction,44.732725,-110.713253,Yellowstone Park,1.1
 06186500,Yellowstone River at Yellowstone Lk Outlet YNP,Yellowstone,Yellowstone at Yellowstone Lk Outlet,44.56709167,-110.3804056,Yellowstone Park,995
 12344000,Bitterroot River near Darby MT,Bitterroot,Bitterroot nr Darby,45.97205,-114.1412333,Western,1050
 12350250,Bitterroot River at Bell Crossing nr Victor MT,Bitterroot,Bitterroot at Bell Crossing nr Victor,46.4432,-114.1237667,Western,1944
@@ -73,12 +72,10 @@ site_no,site_name,river,label,lat,lon,region,drain_area
 12329500,Flint Creek at Maxville MT,Flint Creek,Flint Cr at Maxville,46.4637583,-113.2402778,Western,206
 12331500,Flint Creek near Drummond MT,Flint Creek,Flint Cr nr Drummond,46.62872778,-113.1506917,Western,490
 12301933,Kootenai River bl Libby Dam nr Libby MT,Kootenai,Kootenai bl Libby Dam nr Libby,48.40066389,-115.3187194,Western,8999
-480608115242901,"Libby Wetland Site bl Schrieber Lake nr Libby, MT",Libby,Libby Wetland Site bl Schrieber Lake nr Libby,48.1022259,-115.4089188,Western,
 12324590,Little Blackfoot River near Garrison MT,Little Blackfoot,Little Blackfoot nr Garrison,46.5194833,-112.7931722,Western,414
 12323840,Lost Creek near Anaconda MT,Lost Creek,Lost Cr nr Anaconda,46.161325,-112.8937972,Western,26.5
 12323850,"Lost Creek near Galen, MT",Lost Creek,Lost Cr nr Galen,46.2185722,-112.7741667,Western,60.5
 12358500,M F Flathead River near West Glacier MT,M F Flathead,M F Flathead nr West Glacier,48.49551667,-114.0102083,Western,1125
-12357500,"Middle Fork Flathead River at West Glacier, MT",Middle Fork Flathead,Middle Fork Flathead at West Glacier,48.499508,-113.975933,Western,943.0
 12332000,Middle Fork Rock Cr nr Philipsburg MT,Middle Fork Rock Creek,Middle Fork Rock Cr nr Philipsburg,46.1845694,-113.5015694,Western,121
 12323670,"Mill Creek nr Anaconda, MT",Mill Creek,Mill Cr nr Anaconda,46.0829722,-112.9171889,Western,39.5
 12323700,"Mill Creek at Opportunity, MT",Mill Creek,Mill Cr at Opportunity,46.11360278,-112.82806111,Western,42.4
@@ -132,7 +129,6 @@ site_no,site_name,river,label,lat,lon,region,drain_area
 06126500,Musselshell River near Roundup MT,Musselshell,Musselshell nr Roundup,46.4277194,-108.5701028,Central,3998
 06127500,Musselshell River at Musselshell MT,Musselshell,Musselshell at Musselshell,46.522425,-108.1088722,Central,4534
 06130500,Musselshell River at Mosby MT,Musselshell,Musselshell at Mosby,46.99469167,-107.8891639,Central,7784
-06131200,Nelson Creek near Van Norman MT,Nelson Creek,Nelson Cr nr Van Norman,47.5365944,-106.1534528,Central,110
 06078500,North Fork Sun River near Augusta MT,North Fork Sun,North Fork Sun nr Augusta,47.6398611,-112.8593333,Central,259
 06061500,Prickly Pear Creek near Clancy MT,Prickly Pear Creek,Prickly Pear Cr nr Clancy,46.5190972,-111.946786,Central,192
 06076690,Smith River near Ft Logan MT,Smith,Smith nr Ft Logan,46.7958,-111.1785556,Central,845
@@ -148,26 +144,20 @@ site_no,site_name,river,label,lat,lon,region,drain_area
 06102500,Teton River bl South Fork nr Choteau MT,Teton,Teton bl South Fork nr Choteau,47.8830833,-112.6119833,Central,110
 06108800,Teton River at Loma MT,Teton,Teton at Loma,47.9327194,-110.5144333,Central,2027
 06091700,Two Medicine River bl South Fork nr Browning MT,Two Medicine,Two Medicine bl South Fork nr Browning,48.426953,-112.989983,Central,250.0
-06101200,"Willow Creek near Galata, MT",Willow Creek,Willow Cr nr Galata,48.44865556,-111.3453056,Central,818
 06151500,Battle Creek near Chinook MT,Battle Creek,Battle Cr nr Chinook,48.64949167,-109.2316944,Eastern,1631
 06166000,Beaver Cr bl Guston Coulee nr Saco MT,Beaver Creek,Beaver Cr bl Guston Coulee nr Saco,48.3567833,-107.5821861,Eastern,1199
 06167500,Beaver Creek near Hinsdale MT,Beaver Creek,Beaver Cr nr Hinsdale,48.4203111,-107.1711389,Eastern,1804.89
-06183450,Big Muddy Creek near Antelope MT,Big Muddy Creek,Big Muddy Cr nr Antelope,48.6728972,-104.5120861,Eastern,955
 06185110,Big Muddy Creek nr mouth nr Culbertson MT,Big Muddy Creek,Big Muddy Cr nr mouth nr Culbertson,48.16448056,-104.6295194,Eastern,2717
 06139500,Big Sandy Creek near Havre MT,Big Sandy Creek,Big Sandy Cr nr Havre,48.52671389,-109.8415778,Eastern,1787
 06287000,Bighorn R bl Yellowtail Afterbay Dam nr St. Xavier,Bighorn,Bighorn R bl Yellowtail Afterbay Dam nr St. Xavier,45.31690278,-107.9188889,Eastern,19670
 06287800,"Bighorn River at bridge, at St. Xavier, MT",Bighorn,Bighorn at bridge at St. Xavier,45.46075278,-107.7493283,Eastern,19906
 06288400,"Bighorn River at Two Leggins Bridge, near Hardin",Bighorn,Bighorn at Two Leggins Bridge nr Hardin,45.6440863,-107.6582164,Eastern,20614
 06294500,Bighorn River ab Tullock Cr nr Bighorn MT,Bighorn,Bighorn ab Tullock Cr nr Bighorn,46.1244722,-107.4687917,Eastern,22417
-06137570,"Boxelder Creek near Rocky Boy, MT",Boxelder Creek,Boxelder Cr nr Rocky Boy,48.2988333,-109.8354167,Eastern,46.6
 06142400,Clear Creek near Chinook MT,Clear Creek,Clear Cr nr Chinook,48.5788694,-109.3911306,Eastern,135
 06289000,Little Bighorn River at State Line nr Wyola MT,Little Bighorn,Little Bighorn at State Line nr Wyola,45.0071111,-107.6154083,Eastern,182
 06290500,Little Bighorn R bl Pass Cr nr Wyola MT,Little Bighorn,Little Bighorn R bl Pass Cr nr Wyola,45.177133,-107.39455,Eastern,426.0
 06293500,Little Bighorn River nr Crow Agency MT,Little Bighorn,Little Bighorn nr Crow Agency,45.568339,-107.452769,Eastern,1186.0
 06294000,Little Bighorn River near Hardin MT,Little Bighorn,Little Bighorn nr Hardin,45.7356861,-107.5574694,Eastern,1294
-06154410,"Little Peoples Creek near Hays, MT",Little Peoples Creek,Little Peoples Cr nr Hays,47.9649333,-108.6559611,Eastern,12.8
-06291500,"Lodge Grass Cr ab Willow Cr diversion, nr Wyola MT",Lodge Grass Creek,Lodge Grass Cr ab Willow Cr diversion nr Wyola,45.119861,-107.606778,Eastern,82.5
-06154430,"Lodge Pole Creek at Lodge Pole, MT",Lodge Pole Creek,Lodge Pole Cr at Lodge Pole,48.0310972,-108.5326111,Eastern,19.5
 06135000,Milk River at Eastern Crossing of Int Bndry,Milk,Milk at Eastern Crossing of Int Bndry,48.9748194,-110.4217778,Eastern,2452
 06140500,Milk River at Havre MT,Milk,Milk at Havre,48.5636861,-109.6959556,Eastern,5655
 06154100,Milk River near Harlem MT,Milk,Milk nr Harlem,48.48964167,-108.75895,Eastern,9652
@@ -178,13 +168,9 @@ site_no,site_name,river,label,lat,lon,region,drain_area
 06174500,Milk River at Nashua MT,Milk,Milk at Nashua,48.13005278,-106.3643139,Eastern,22452
 06177000,Missouri River near Wolf Point MT,Missouri,Missouri nr Wolf Point,48.067325,-105.5330972,Eastern,80650
 06185500,Missouri River near Culbertson MT,Missouri,Missouri nr Culbertson,48.1235,-104.4733,Eastern,89858
-06154400,Peoples Creek near Hays MT,Peoples Creek,Peoples Cr nr Hays,48.2237333,-108.7140528,Eastern,227
-06178000,Poplar River at international boundary,Poplar,Poplar at international boundary,48.9902861,-105.6969083,Eastern,358
 06181000,Poplar River near Poplar MT,Poplar,Poplar nr Poplar,48.11791667,-105.1928167,Eastern,3170
 06324500,Powder River at Moorhead MT,Powder,Powder at Moorhead,45.0571972,-105.8783778,Eastern,8029
 06326500,Powder River near Locate MT,Powder,Powder nr Locate,46.4294361,-105.3103306,Eastern,13060
-06177500,Redwater River at Circle MT,Redwater,Redwater at Circle,47.4139722,-105.5756444,Eastern,551
-06169500,Rock Creek bl Horse Creek nr int'l boundary,Rock Creek,Rock Cr bl Horse Cr nr int'l boundary,48.969375,-106.8398417,Eastern,322
 06295113,Rosebud C at Reservation Bndry nr Kirby MT,Rosebud Creek,Rosebud C at Reservation Bndry nr Kirby,45.36116667,-106.9903556,Eastern,124
 06295220,Rosebud C Bel Lame Deer C nr Lame Deer MT,Rosebud Creek,Rosebud C Bel Lame Deer C nr Lame Deer,45.67582545,-106.700309,Eastern,645
 05017500,St. Mary River near Babb MT,St. Mary,St. Mary nr Babb,48.83303718,-113.4206533,Eastern,275

@@ -5,7 +5,8 @@ Goal: a free public river report for anglers in Montana, Idaho, Colorado and Wyo
 ## Rules for every state
 - Flows only. Boat ramps stay in Montana. No other state gets ramps for now.
 - Start from the key rivers an angler would name, not from every gauge.
-- New gauges: skip any gauge that has ever dropped below 20 cfs, unless it's on a key river. Montana keeps its current gauges.
+- Fishable water stays. Low flow alone never cuts a gauge: Soda Butte and Silver Creek are small and famous. Cut only water that is clearly not fished or floated, and keep it when unsure.
+- New gauges: skip any gauge that has ever dropped below 20 cfs, unless it's on a key river or known fishing water.
 - Show three flow states only: below normal, near normal, above normal. Add rising, steady or dropping.
 - Flow never means "good fishing". The app shows the water. The reader makes the call.
 - Plain words. Technical detail stays out of the main pages.

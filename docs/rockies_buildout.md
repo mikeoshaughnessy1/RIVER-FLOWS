@@ -13,7 +13,9 @@ Goal: a free public river report for anglers in Montana, Idaho, Colorado and Wyo
 
 ## Fishing knowledge and voice
 - Fishing facts follow the Fly Fishers International intro guide: 59 to 64°F is best for trout, oxygen drops in the upper 60s, over 70°F they don't feed, under 45°F they hold deep and slow. Stained water pushes fish toward the bank. Freestone, tailwater and spring fed are the three river types.
-- Voice follows old fishing writing like the FlyLife tribute to Lefty Kreh: dry, plain, specific. Trust the reader. Don't copy its lines.
+- Voice follows Lefty Kreh interviews and tributes: plain talk, a reason first, one dry jab at most. Trust the reader. Don't copy his lines.
+- Color on the map only means a river moved or is well off normal. Steady water stays pale.
+- The hatch chart is one Rocky Mountain chart for now, in `data/hatches.csv`.
 
 ## Keeping the site light
 - Target about 40 gauges per state.
@@ -65,6 +67,7 @@ Not in this build. Warn when rivers go to chocolate milk, then show which dam re
 - USGS `latest-continuous` gives live flow. Open-Meteo gives past and forecast rain with no key, for non-commercial use.
 - USGS lists no turbidity at Corwin Springs or Livingston, so muddy water is inferred and worded "likely".
 - Backtest Lamar and Soda Butte against Corwin and Livingston first to set thresholds.
+- The Friday night test: an angler opens the app and sees that rain on the Colorado around State Bridge will blow out Catamount down to I-70, without pulling up every gauge.
 
 ## Open checks
 - Confirm the NRCS snow data source and basin outlines before building the snowpack tab.

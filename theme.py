@@ -121,10 +121,6 @@ header[data-testid=stHeader] {{ background: transparent; height: 0; }}
   font-size: .8rem; pointer-events: none; }}
 .rr-legend .what {{ flex: 1 1 100%; color: {INK2}; line-height: 1.4; }}
 .rr-legend .what b {{ color: {INK}; }}
-.rr-legend .ramp {{ flex: 1 1 100%; }}
-.rr-legend .bar {{ height: 8px; border-radius: 4px; }}
-.rr-legend .ticks {{ display: flex; justify-content: space-between; font-size: .72rem; color: {MUTED};
-  font-variant-numeric: tabular-nums; margin-top: .15rem; }}
 .rr-legend .keys {{ display: flex; flex-wrap: wrap; gap: .3rem .9rem; flex: 1 1 100%; }}
 .rr-legend .key {{ white-space: nowrap; color: {INK2}; }}
 .rr-sym {{ display: inline-block; width: 1.1rem; text-align: center; font-weight: 700; }}
@@ -135,6 +131,15 @@ header[data-testid=stHeader] {{ background: transparent; height: 0; }}
 .rr-tempguide div {{ background: {SURFACE}; border: 1px solid {RULE}; border-top: 4px solid var(--c); border-radius: {RADIUS}; padding: .5rem .65rem; font-size: .8rem; color: {INK2}; }}
 .rr-tempguide div.now {{ outline: 2px solid {INK}; }}
 .rr-tempguide b {{ display: block; color: {INK}; font-size: .9rem; }}
+.rr-hatch {{ display: grid; grid-template-columns: minmax(120px, 190px) repeat(12, minmax(0, 1fr)); gap: 2px; margin: .6rem 0 .5rem; font-size: .85rem; color: {INK2}; }}
+.rr-hatch .m {{ text-align: center; font-size: .75rem; color: {MUTED}; padding-bottom: .15rem; }}
+.rr-hatch .m.now {{ color: {INK}; font-weight: 700; }}
+.rr-hatch .g {{ grid-column: 1 / -1; font: 650 .95rem 'Fraunces', serif; color: {INK}; margin-top: .55rem; }}
+.rr-hatch .n {{ align-self: center; }}
+.rr-hatch .c {{ height: 1.35rem; border-radius: 3px; box-shadow: inset 0 0 0 1px {RULE}; }}
+.rr-hatch .c.now {{ box-shadow: inset 0 0 0 2px {INK}; }}
+.rr-hatchkey {{ display: flex; gap: 1rem; font-size: .78rem; color: {MUTED}; margin-bottom: .8rem; }}
+.rr-hatchkey i {{ display: inline-block; width: .85rem; height: .85rem; border-radius: 3px; margin-right: .3rem; vertical-align: -1px; box-shadow: inset 0 0 0 1px {RULE}; }}
 .rr-trend {{ color: {MUTED}; font-weight: 700; }}
 .rr-rcard .line span:last-child {{ white-space: nowrap; flex: none; }}
 .rr-card {{ background: {SURFACE}; border: 1px solid {RULE}; border-radius: {RADIUS}; padding: .8rem .95rem; margin: .4rem 0 .6rem; }}
@@ -318,6 +323,25 @@ def temp_guide(bands, now=None):
     st.markdown(f'<div class="rr-tempguide">{body}</div>', unsafe_allow_html=True)
 
 
+def hatch_chart(rows, month):
+    """rows: dicts with group, insect and levels (12 numbers, 0 to 3). `month` is 1 to 12."""
+    words = ['', 'Some', 'Good', 'Peak']
+    fill = ['transparent', 'rgba(46,81,64,.22)', 'rgba(46,81,64,.55)', PINE]
+    head = '<span></span>' + ''.join(f'<span class="m{" now" if i + 1 == month else ""}">{m}</span>'
+                                     for i, m in enumerate('JFMAMJJASOND'))
+    body, group_now = '', None
+    for r in rows:
+        if r['group'] != group_now:
+            group_now = r['group']
+            body += f'<span class="g">{esc(group_now)}</span>'
+        cells = ''.join(f'<span class="c{" now" if i + 1 == month else ""}" style="background:{fill[v]}" '
+                        f'title="{esc(r["insect"])}: {words[v] or "none"}"></span>' for i, v in enumerate(r['levels']))
+        body += f'<span class="n">{esc(r["insect"])}</span>{cells}'
+    keys = ''.join(f'<span><i style="background:{fill[i]}"></i>{words[i]}</span>' for i in (1, 2, 3))
+    st.markdown(f'<div class="rr-hatch" role="img" aria-label="Hatch chart by month">{head}{body}</div>'
+                f'<div class="rr-hatchkey">{keys}</div>', unsafe_allow_html=True)
+
+
 def group(text):
     st.markdown(f'<div class="rr-group">{esc(text)}</div>', unsafe_allow_html=True)
 
@@ -335,7 +359,8 @@ def cfs(x):
 # Checked for red-green colorblindness: neighbors stay 11+ apart (delta E), all 3:1 on the page.
 DROP, STEADY, RISE = '#9b1c2e', '#8a8983', '#17509e'
 # Smooth heat map ramp, vivid for the dark imagery: green is no change. Not colorblind safe, so dots also carry + and -
-DIVERGING = [(0.0, '#e6002e'), (0.2, '#ff5a00'), (0.38, '#ffd000'), (0.5, '#2fe38a'), (0.62, '#00d0ff'), (0.8, '#0090ff'), (1.0, '#1a2cff')]
+# Color only means the river moved: red dropping, blue rising, darker for a bigger move. Steady stays pale.
+DIVERGING = [(0.0, '#c8102e'), (0.42, '#ff8a3d'), (0.5, '#e4e0d6'), (0.58, '#4cc3ff'), (1.0, '#1a3cff')]
 OFF_SEASON = '#8f8b82'
 
 
@@ -379,10 +404,6 @@ def with_land(style, before):
     return {**style, 'id': style['id'] + '-land', 'layers': style['layers'][:at] + [layer] + style['layers'][at:],
             'sources': {**style['sources'], 'land': {'type': 'raster', 'tiles': [LAND_TILES], 'tileSize': 256,
                                                      'attribution': 'BLM'}}}
-
-
-def ramp_css():
-    return 'linear-gradient(90deg,' + ','.join(f'{c} {t * 100:.0f}%' for t, c in DIVERGING) + ')'
 
 
 def _hex(h):

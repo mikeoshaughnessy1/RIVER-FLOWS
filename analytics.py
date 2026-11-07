@@ -103,6 +103,7 @@ def _by_site(name: str, index=None) -> dict:
 
 NORMALS = _by_site('normals.csv.gz', 'md')    # all years, so normal stays strong with 10 years of daily rows
 PEAKS = _by_site('peaks.csv.gz')
+HATCHES = pd.read_csv(_DATA / 'hatches.csv', dtype=str) if (_DATA / 'hatches.csv').exists() else pd.DataFrame()
 SEASONS = pd.read_csv(_DATA / 'seasons.csv', dtype=str) if (_DATA / 'seasons.csv').exists() else pd.DataFrame()
 
 
@@ -211,7 +212,17 @@ def current_conditions(df, sites: list | None = None, as_of: str | None = None) 
 def _flow_note(pct):
     if pct is None:
         return ''
-    return 'Running low for the date.' if pct < 75 else ('Running high for the date.' if pct > 130 else 'Near normal for the date.')
+    return 'Low for this time of year.' if pct < 75 else ('High for this time of year.' if pct > 130 else 'About where it ought to be.')
+
+
+def _move_note(rows):
+    """A nudge when a river jumps or falls fast. Flow can't see clarity, so it says might."""
+    ch = [(r['change_7d_pct'], r['gauge']) for r in rows if r.get('change_7d_pct') is not None]
+    if ch and max(ch)[0] >= 30:
+        return f'Coming up at {max(ch)[1]}. Might be off color.'
+    if ch and min(ch)[0] <= -20:
+        return f'Dropping fast at {min(ch)[1]}.'
+    return ''
 
 
 def _temp_note(temp):
@@ -246,7 +257,7 @@ def river_summary(rows: list) -> ToolResult:
     flow = {_flow_note(r.get('pct_of_median')) for r in rows} - {''}
     temps = [t for t in map(_river_temp, rows) if t is not None]
     bits = [flow.pop() if len(flow) == 1 else ('Depends which stretch you fish.' if flow else 'No normal for the date.'),
-            _temp_note(max(temps) if temps else None)]
+            _move_note(rows), _temp_note(max(temps) if temps else None)]
     return ToolResult('river_summary', ' '.join(x for x in bits if x), definition, rows[0].get('river', ''), len(rows))
 
 
@@ -260,6 +271,15 @@ def season(date, state='MT') -> ToolResult:
         if (md >= r['start'] or md <= r['end']) if wraps else r['start'] <= md <= r['end']:
             return ToolResult('season', {'name': r['season'], 'expect': r['what_to_expect']}, definition, state, 1)
     return ToolResult('season', error=f'No season on file for {state} on {md}.')
+
+
+def hatches(date) -> ToolResult:
+    """The hatch chart, plus what is at good or peak level this month."""
+    m = pd.Timestamp(date).month
+    rows = [{'group': r['group'], 'insect': r['insect'], 'levels': [int(r[str(i)]) for i in range(1, 13)]}
+            for r in HATCHES.to_dict('records')]
+    now = [r['insect'] for r in rows if r['levels'][m - 1] >= 2]
+    return ToolResult('hatches', {'rows': rows, 'now': now}, 'Rough Rocky Mountain timing, 0 none to 3 peak.', str(m), len(rows))
 
 
 def verdict(rows: list, where: str) -> ToolResult:

@@ -118,7 +118,7 @@ def snapshot_origin():
     return f'snapshot downloaded {T.date(d)}' if d else 'bundled snapshot'
 
 
-PAGES = ['Map', 'Today', 'Water temp', 'More']
+PAGES = ['Map', 'Today', 'Hatches', 'Water temp', 'More']
 MORE = ['History', 'Ask', 'Data']
 # shortcut: Streamlit can't see the screen width, so this reads the browser name. Tablets get the
 # desktop view. Upgrade if a width-aware map component ever comes in.
@@ -240,6 +240,7 @@ STALE = AGE_DAYS > 3
 recent_flow = set(df.loc[(df['date'] > LAST - pd.Timedelta(days=4)) & df['flow_cfs'].notna(), 'site_no'].unique())
 WHERE = 'Montana and Yellowstone' if region == 'All Montana' else region
 SEASON = A.season(LAST).value
+hatching_line = (lambda n: f'Hatching now: {", ".join(n).lower()}.' if n else '')(A.hatches(LAST).value['now'])
 kicker = f'{WHERE} · {SEASON["name"]}' if SEASON else WHERE
 
 
@@ -369,6 +370,8 @@ if page.endswith('Map'):
         # Change: -50% .. +50% maps to red .. blue. Vs normal: 50% .. 200% on a log scale.
         if v is None:
             return None
+        if state(v)[0] == '●':      # no move, no color
+            return .5
         if mode == 'Change':
             return (max(-50, min(50, v)) + 50) / 100
         return (max(-1, min(1, math.log2(max(v, 1) / 100))) + 1) / 2
@@ -379,7 +382,7 @@ if page.endswith('Map'):
             return '○', 'No reading'
         if mode == 'Change':
             return ('▲', 'Rising') if v >= 5 else (('▼', 'Dropping') if v <= -5 else ('●', 'Steady'))
-        return ('▲', 'Above normal') if v >= 110 else (('▼', 'Below normal') if v <= 90 else ('●', 'Near normal'))
+        return ('▲', 'Above normal') if v > 130 else (('▼', 'Below normal') if v < 75 else ('●', 'Near normal'))
 
     def color_of(sn):
         r = rows.get(sn)
@@ -409,7 +412,7 @@ if page.endswith('Map'):
             title = f'{gauges(downs)} below normal, {ups} above'
             span = f'On {end_label}.'
             ends = f'Lowest{on_key}: {lo["gauge"]}, {fmt(metric(lo))}. Highest{on_key}: {hi["gauge"]}, {fmt(metric(hi))}.'
-        sub = f'{span} {ends} {len(live)} of {len(order)} gauges have a usable reading.'
+        sub = f'{span} {ends}'
     else:
         title = 'No readings near this date'
         sub = 'Seasonal gauges shut off in fall and winter. Try a date in spring or summer, or another region.'
@@ -418,17 +421,14 @@ if page.endswith('Map'):
 
     # ---- legend: what is measured, over what window, and what each state means
     if mode == 'Change':
-        what = (f'<b>Change in flow</b> over the <b>{window} day{"s" if window > 1 else ""}</b> '
-                f'ending <b>{end_label}</b>.')
-        ticks = ['-50%', '-25%', '0', '+25%', '+50%']
-        keys = [('▼', T.diverging_color(0), 'Dropping 5% or more'), ('●', T.diverging_color(.5), 'Within 5%'),
-                ('▲', T.diverging_color(1), 'Rising 5% or more'), ('○', T.STONE, 'No reading near this date')]
+        what = (f'Color means the river moved in the last <b>{window} day{"s" if window > 1 else ""}</b>. '
+                'Darker is a bigger move.')
+        keys = [('▲', T.diverging_color(1), 'Rising'), ('▼', T.diverging_color(0), 'Dropping'),
+                ('●', T.diverging_color(.5), 'Steady'), ('○', T.STONE, 'No reading')]
     else:
-        what = (f'<b>Flow vs normal</b> on <b>{end_label}</b>: percent of the usual flow '
-                f'for that date.')
-        ticks = ['50%', '71%', '100%', '141%', '200%']
-        keys = [('▼', T.diverging_color(0), 'Below 90% of normal'), ('●', T.diverging_color(.5), '90 to 110%'),
-                ('▲', T.diverging_color(1), 'Above 110% of normal'), ('○', T.STONE, 'No reading or no normal yet')]
+        what = 'Color means the river is well off normal for this date. Darker is further off.'
+        keys = [('▲', T.diverging_color(1), 'High'), ('▼', T.diverging_color(0), 'Low'),
+                ('●', T.diverging_color(.5), 'Near normal'), ('○', T.STONE, 'No reading')]
     if ramps:
         keys.append(('●', T.PINE, 'Boat ramp'))
     hist_note = ' <span class="rr-pill warn">Past date</span>' if historical else ''
@@ -549,9 +549,7 @@ if page.endswith('Map'):
     with st.container(key='mapbox', gap=None):
         st.markdown(
             f'<div class="rr-legend" role="note" aria-label="Map legend">'
-            f'<div class="what">{what}{hist_note} Each river takes the color of the gauge just below it.</div>'
-            f'<div class="ramp" aria-hidden="true"><div class="bar" style="background:{T.ramp_css()}"></div>'
-            f'<div class="ticks">' + ''.join(f'<span>{t}</span>' for t in ticks) + '</div></div>'
+            f'<div class="what">{what}{hist_note}</div>'
             '<div class="keys">' + ''.join(
                 f'<span class="key"><span class="rr-sym" style="color:{c}" aria-hidden="true">{sym}</span>{T.esc(lab)}</span>'
                 for sym, c, lab in keys) + '</div></div>', unsafe_allow_html=True)
@@ -612,7 +610,7 @@ if page.endswith('Map'):
     for r in shown:
         v = metric(r)
         sym, word = state(v)
-        trows.append({'dir_html': f'<span style="color:{shade(v)};font-weight:700" aria-hidden="true">{sym}</span> {word}',
+        trows.append({'dir_html': f'<span style="color:{T.MUTED if sym == "●" else shade(v)};font-weight:700" aria-hidden="true">{sym}</span> {word}',
                       'gauge': r['gauge'], 'river': r['river'],
                       'start': f"{r['start_cfs']:,.0f}", 'end': f"{r['end_cfs']:,.0f}",
                       'chg': '–' if r['change_pct'] is None else f"{r['change_pct']:+.0f}%",
@@ -639,8 +637,7 @@ elif page.endswith('Today'):
     rows = cc.value if order else []       # an empty list means "every gauge" to current_conditions
     recent = [r for r in rows if pd.Timestamp(r['date']) >= LAST - pd.Timedelta(days=3)]
     T.masthead(kicker, A.verdict(recent, WHERE).value,
-               (f'{SEASON["expect"]} ' if SEASON else '') + f'Flow through {LAST:%A}, {T.date(LAST)}, next to what is normal for this date. '
-               'Normal is the middle value for this date across all years on record.')
+               (f'{SEASON["expect"]} ' if SEASON else '') + hatching_line + f' Flows through {LAST:%A}, {T.date(LAST)}.')
     status_line()
     if not rows:
         T.note('No gauges in this region have a recent reading. Seasonal gauges shut off in fall and winter.')
@@ -701,8 +698,8 @@ elif page.endswith('Today'):
                        f'<span class="rr-pill warn">{T.esc(T.date(g["date"], False))}</span>') for g in gs]}
             for river, gs in rivers.items() if gs])
 
-    T.section('Key rivers', 'Arrows show the 7-day trend. The percent is flow vs normal for the date: '
-                            'under 75% is low, over 130% is high.')
+    T.section('Key rivers', 'The arrow is the last week. The percent is how the river compares to normal '
+                            'for this date, across every year on record.')
     cards(key_rivers, sparks=True)
     if by_area:
         with st.expander('All other rivers'):
@@ -845,8 +842,8 @@ elif page.endswith('History'):
 
 elif page.endswith('Water temp'):
     T.masthead('Water temperature', 'Water temperature and trout',
-               'Montana FWP watches for daily max water temps at or above 73°F three days running when '
-               'deciding hoot-owl restrictions. This page shows that pattern; FWP makes the call.')
+               'Trout are cold-blooded, so the water decides how they act. Montana FWP watches for 73°F, '
+               'three days running, when it sets hoot-owl limits. FWP makes the call.')
     status_line()
     if not with_temp:
         T.note('No gauges in this region have a water temperature sensor with recent readings. '
@@ -909,12 +906,21 @@ elif page.endswith('Water temp'):
         st.plotly_chart(fig, width='stretch', config={'displayModeBar': False})
         st.caption('Shaded spans are runs of 3+ days at or above 73°F. ' + ' '.join(hw.caveats[1:]))
 
+# ---------------- Hatches ----------------
+
+elif page.endswith('Hatches'):
+    hv = A.hatches(LAST).value
+    T.masthead('Hatches', f'{LAST:%B} on the water',
+               'What the bugs are doing, month by month. Every river runs on its own clock, so call this a '
+               'good guess and trust what you see on the water.')
+    T.hatch_chart(hv['rows'], LAST.month)
+    st.caption('Rough Rocky Mountain timing. The outlined column is this month.')
+
 # ---------------- 4 Ask ----------------
 
 elif page.endswith('Ask'):
-    T.masthead('Ask', 'Questions about the rivers',
-               'Every number comes from a calculation on the loaded data. The method under each answer '
-               'shows exactly which tool ran.')
+    T.masthead('Ask', 'Ask about the rivers',
+               'Every number comes from the gauges, not a guess. The method sits under each answer.')
     key = secret('GEMINI_API_KEY')
     models = tuple(m for m in [secret('GEMINI_MODEL'), 'gemini-3-flash-preview', 'gemini-2.5-flash'] if m)
     status_line()

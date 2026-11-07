@@ -203,8 +203,8 @@ def test_overlay_replaces_the_same_day_and_keeps_the_rest():
 
 def test_river_note_states_flow_and_temp_facts():
     assert A.river_note({'pct_of_median': 60, 'water_temp_max_f': 74}).value == \
-        'Running low for the date. Water at 74°F, at or above the 73°F line.'
-    assert A.river_note({'pct_of_median': 100, 'water_temp_max_f': 50}).value == 'Near normal for the date.'
+        'Low for this time of year. Water at 74°F, at or above the 73°F line.'
+    assert A.river_note({'pct_of_median': 100, 'water_temp_max_f': 50}).value == 'About where it ought to be.'
     assert A.river_note({}).value == ''
 
 
@@ -226,20 +226,20 @@ def test_gauge_split_survives_another_thread_clearing_the_cache(monkeypatch):
 
 def test_river_note_leaves_hot_springs_out_of_the_temp_line():
     hot = {'site_no': next(iter(config.THERMAL)), 'pct_of_median': 100, 'water_temp_max_f': 123}
-    assert A.river_note(hot).value == 'Near normal for the date.'
-    assert A.river_summary([hot]).value == 'Near normal for the date.'
+    assert A.river_note(hot).value == 'About where it ought to be.'
+    assert A.river_summary([hot]).value == 'About where it ought to be.'
 
 
 def test_river_summary_says_mixed_when_gauges_disagree():
     rows = [{'pct_of_median': 66}, {'pct_of_median': 76}, {'pct_of_median': 420}]
     assert A.river_summary(rows).value == 'Depends which stretch you fish.'
-    assert A.river_summary(rows[:1] * 2).value == 'Running low for the date.'
+    assert A.river_summary(rows[:1] * 2).value == 'Low for this time of year.'
 
 
 def test_river_summary_takes_temp_from_the_warmest_gauge():
     rows = [{'pct_of_median': 100, 'water_temp_max_f': None}, {'pct_of_median': 100, 'water_temp_max_f': 60},
             {'pct_of_median': 100, 'water_temp_max_f': 74}]
-    assert A.river_summary(rows).value == 'Near normal for the date. Water at 74°F, at or above the 73°F line.'
+    assert A.river_summary(rows).value == 'About where it ought to be. Water at 74°F, at or above the 73°F line.'
 
 
 def test_river_summary_tells_no_normal_apart_from_no_reading():
@@ -286,4 +286,16 @@ def test_season(date, name):
 
 def test_every_day_has_a_season():
     assert not any(A.season(d).error for d in pd.date_range('2024-01-01', '2024-12-31'))
+
+
+def test_hatches_now():
+    assert A.hatches('2026-11-06').value['now'] == ['Midges']
+    assert 'Hoppers' in A.hatches('2026-08-06').value['now']
+    assert all(len(r['levels']) == 12 for r in A.hatches('2026-08-06').value['rows'])
+
+
+def test_river_note_flags_a_fast_rise():
+    rows = [{'gauge': 'A', 'river': 'R', 'pct_of_median': 100, 'change_7d_pct': 45},
+            {'gauge': 'B', 'river': 'R', 'pct_of_median': 100, 'change_7d_pct': 2}]
+    assert 'Coming up at A' in A.river_summary(rows).value
 

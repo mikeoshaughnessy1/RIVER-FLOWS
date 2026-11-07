@@ -25,7 +25,7 @@ def go(at, page):
         at.radio(key='page').set_value(page).run()
 
 
-@pytest.mark.parametrize('page', ['Map', 'Today', 'History', 'Water temp', 'Ask', 'Data'])
+@pytest.mark.parametrize('page', ['Map', 'Today', 'Hatches', 'History', 'Water temp', 'Ask', 'Data'])
 def test_every_page_opens(app, page):
     go(app, page)
     assert not app.exception

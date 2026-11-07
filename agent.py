@@ -324,7 +324,7 @@ def rules_answer(question: str, df, log, notes=None) -> dict:
 
 # ---------- Gemini ----------
 
-SYSTEM = """You are the analyst for a Bozeman, Montana river report built on USGS gauge data.
+SYSTEM = """You are the analyst for a Rockies river report for anglers built on USGS gauge data.
 Rules:
 - Every number you state must come from a tool result in this conversation. Never estimate or invent.
 - Call tools for anything numeric. Use site numbers from the enum. If the user names only a river,

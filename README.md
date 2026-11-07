@@ -1,4 +1,4 @@
-# Montana River Report
+# Rockies River Report
 
 A Streamlit app for Montana and Yellowstone Park rivers, built on USGS gauge data. Same build as our
 E-Presso BI app (tool-calling assistant, upload and recalculate, validation), pointed at water

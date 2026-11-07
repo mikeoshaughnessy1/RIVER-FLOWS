@@ -53,6 +53,10 @@ DAILY_COLUMNS = ['site_no', 'date', 'flow_cfs', 'temp_mean_c', 'temp_max_c',
 # snapshot is older than this: see data_prep.refresh_start.
 REFRESH_DAYS = 120
 
+# The rivers shown first on Today and the map table, in display order
+KEY_RIVERS = ['Yellowstone', 'Madison', 'Missouri', 'Gallatin', 'Jefferson', 'Bighorn', 'Big Hole',
+              'Beaverhead', 'Bitterroot', 'Blackfoot', 'Clark Fork', 'Kootenai']
+
 # When someone names only a river, use this gauge (and say so in the answer's scope)
 DEFAULT_GAUGE = {
     'gallatin': '06043500', 'madison': '06040000', 'yellowstone': '06192500',

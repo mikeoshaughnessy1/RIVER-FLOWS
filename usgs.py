@@ -12,7 +12,7 @@ import requests
 import config
 
 DAILY_URL = 'https://api.waterdata.usgs.gov/ogcapi/v0/collections/daily/items'
-UA = 'bozeman-river-report (student project)'
+UA = 'rockies-river-report'
 
 # New-API qualifier words -> the short flags the app shows
 FLAG_NAMES = {'ESTIMATED': 'Estimated', 'ICE': 'Ice', 'EQUIPMENT': 'Equipment',

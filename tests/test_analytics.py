@@ -261,3 +261,17 @@ def test_usgs_download_that_runs_out_of_pages_is_an_error(monkeypatch):
     monkeypatch.setattr(usgs.requests, 'get', lambda *a, **k: Page())
     with pytest.raises(RuntimeError, match='not complete'):
         list(usgs._pages({}, None, max_pages=2))
+
+
+@pytest.mark.parametrize('changes,say', [
+    ([-20, -10, 1], 'Most Montana rivers are dropping.'),
+    ([20, 10, 1], 'Most Montana rivers are rising.'),
+    ([1, 2, -30], 'Most Montana rivers are steady.'),
+    ([20, -20, 1, None], 'Montana rivers are mixed this week.'),
+])
+def test_verdict(changes, say):
+    assert A.verdict([{'change_7d_pct': c} for c in changes], 'Montana').value == say
+
+
+def test_verdict_with_no_change_data():
+    assert 'No recent' in A.verdict([], 'Montana').value

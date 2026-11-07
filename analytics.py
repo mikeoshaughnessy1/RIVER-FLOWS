@@ -11,6 +11,7 @@ import config
 
 MIN_NORMAL_YEARS = 5          # need at least this many other years to call something "normal"
 FULL_YEAR_DAYS = 330          # a water year with fewer flow days than this is "partial"
+STEADY_PCT = 5                # a 7-day change inside this is steady
 MIN_CHANGE_CFS = 1.0          # below this, percent change is not reported
 
 
@@ -215,6 +216,19 @@ def river_summary(rows: list) -> ToolResult:
     bits = [flow.pop() if len(flow) == 1 else ('Mixed for the date: gauges differ.' if flow else 'No normal for the date.'),
             _temp_note(max(temps) if temps else None)]
     return ToolResult('river_summary', ' '.join(x for x in bits if x), definition, rows[0].get('river', ''), len(rows))
+
+
+def verdict(rows: list, where: str) -> ToolResult:
+    """One headline from current_conditions rows: which way most gauges moved over 7 days."""
+    definition = f'Most means over half of gauges with a 7-day change moved more than {STEADY_PCT}% that way.'
+    ch = [r['change_7d_pct'] for r in rows if r.get('change_7d_pct') is not None]
+    if not ch:
+        return ToolResult('verdict', f'No recent 7-day change for {where}.', definition)
+    moves = {'dropping': sum(c < -STEADY_PCT for c in ch), 'rising': sum(c > STEADY_PCT for c in ch)}
+    moves['steady'] = len(ch) - moves['dropping'] - moves['rising']
+    word, n = max(moves.items(), key=lambda kv: kv[1])
+    say = f'Most {where} rivers are {word}.' if n > len(ch) / 2 else f'{where} rivers are mixed this week.'
+    return ToolResult('verdict', say, definition, where, len(ch))
 
 
 def flow_stats(df, site, start=None, end=None) -> ToolResult:

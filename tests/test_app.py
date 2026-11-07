@@ -17,9 +17,17 @@ def app():
     return AppTest.from_file(APP, default_timeout=120).run()
 
 
+def go(at, page):
+    if page in ('History', 'Ask', 'Data'):
+        at.radio(key='page').set_value('More').run()
+        at.radio(key='more').set_value(page).run()
+    else:
+        at.radio(key='page').set_value(page).run()
+
+
 @pytest.mark.parametrize('page', ['Map', 'Today', 'History', 'Water temp', 'Ask', 'Data'])
 def test_every_page_opens(app, page):
-    app.radio(key='page').set_value(page).run()
+    go(app, page)
     assert not app.exception
 
 
@@ -29,7 +37,7 @@ def test_region_with_no_gauges_is_a_message_not_a_crash():
     at.run()
     at.selectbox(key='region').set_value('Western').run()
     for page in ['Map', 'Today', 'History', 'Water temp']:
-        at.radio(key='page').set_value(page).run()
+        go(at, page)
         assert not at.exception, page
 
 
@@ -43,7 +51,7 @@ def test_date_outside_new_data_is_pulled_back_in_range():
 def test_data_note_link_opens_the_issues_section():
     at = AppTest.from_file(APP, default_timeout=120).run()
     at.button(key='to_data').click().run()
-    assert at.radio(key='page').value == 'Data' and not at.exception
+    assert at.radio(key='more').value == 'Data' and not at.exception
     text = ' '.join(m.value for m in at.markdown)
     assert 'Data issues found' in text and 'negative flow' in text and 'no flow reading' in text
 
@@ -71,5 +79,5 @@ def test_uploaded_data_is_not_overlaid_with_the_recent_file():
 
 
 def test_data_page_does_not_say_provisional(app):
-    app.radio(key='page').set_value('Data').run()
+    go(app, 'Data')
     assert 'provisional' not in ' '.join(x.value for x in [*app.markdown, *app.caption]).lower()

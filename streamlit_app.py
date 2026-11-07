@@ -1,4 +1,4 @@
-"""Montana River Report: layout only. Data loading lives in data_prep, math in analytics,
+"""Rockies River Report: layout only. Data loading lives in data_prep, math in analytics,
 the assistant in agent, looks in theme."""
 from __future__ import annotations
 import gzip
@@ -20,7 +20,7 @@ import usgs
 
 ROOT = pathlib.Path(__file__).parent
 SNAPSHOT_SRC = 'Snapshot in data/daily_values.csv.gz'
-st.set_page_config(page_title='Montana River Report', page_icon='🎣', layout='wide')
+st.set_page_config(page_title='Rockies River Report', page_icon='🎣', layout='wide')
 T.inject()
 
 
@@ -116,7 +116,8 @@ def snapshot_origin():
     return f'snapshot downloaded {T.date(d)}' if d else 'bundled snapshot'
 
 
-PAGES = ['Map', 'Today', 'History', 'Water temp', 'Ask', 'Data']
+PAGES = ['Map', 'Today', 'Water temp', 'More']
+MORE = ['History', 'Ask', 'Data']
 # shortcut: Streamlit can't see the screen width, so this reads the browser name. Tablets get the
 # desktop view. Upgrade if a width-aware map component ever comes in.
 PHONE = 'Mobi' in st.context.headers.get('User-Agent', '')
@@ -148,16 +149,18 @@ for _k in PERSIST:
 # ---------------- top bar ----------------
 
 with st.container(key='topbar', horizontal=True, horizontal_alignment='distribute', vertical_alignment='bottom'):
-    T.brand('River Report', 'Montana & Yellowstone field report from USGS gauges')
+    T.brand('Rockies River Report', 'Montana & Yellowstone field report from USGS gauges')
     region = st.selectbox('Region', ['All Montana'] + config.REGIONS, key='region', width=210,
                           help='Filters the map, gauge lists and download. Ask always sees every gauge.')
 with st.container(key='nav'):
     page = st.radio('Section', PAGES, key='page', horizontal=True, label_visibility='collapsed')
+    if page == 'More':
+        page = st.radio('More', MORE, key='more', horizontal=True, label_visibility='collapsed')
 
 try:
     df, sites, notes = build_cached(ss.daily_bytes, ss.sites_bytes, ss.recent_bytes)
 except ValueError as e:
-    T.masthead('Montana River Report', 'The data could not be loaded',
+    T.masthead('Rockies River Report', 'The data could not be loaded',
                'The file that was loaded is missing something the app needs. Nothing below is shown '
                'until the data is fixed, so no numbers are guessed.')
     T.note(str(e), error=True)
@@ -247,7 +250,7 @@ def status_line():
     T.status(parts, stale=STALE)
     if warns and page != 'Data':
         def see_notes():
-            ss['page'] = 'Data'
+            ss['page'], ss['more'] = 'More', 'Data'
         st.button(f'⚠️ {len(warns)} data note{"s" if len(warns) > 1 else ""}: see Data', key='to_data',
                   type='tertiary', on_click=see_notes)
 
@@ -575,18 +578,19 @@ if page.endswith('Map'):
             st.caption('This gauge has no map location in the sites file, so it is not on the map.')
 
         def open_history(sn=find):
-            ss['page'] = 'History'
+            ss['page'], ss['more'] = 'More', 'History'
             ss['hist_gauge'] = sn
         st.button('Open this gauge in History', on_click=open_history, key='map_to_hist')
 
-    T.section('Every gauge, ranked',
+    T.section('Gauges, ranked',
               f"{'Change over ' + str(window) + ' days' if mode == 'Change' else 'Percent of normal'} "
               f'ending {end_label}, {WHERE}.')
     ranked = sorted((r for r in fc.value if r['site_no'] in in_view),
                     key=lambda r: (metric(r) is None, metric(r) or 0))
     default('map_all', False)
     show_all = st.toggle('Show every gauge', key='map_all') or len(ranked) <= 30
-    shown = ranked if show_all else ranked[:10] + ranked[-10:]
+    key_rows = [r for r in ranked if r['river'] in config.KEY_RIVERS]
+    shown = ranked if show_all or not key_rows else key_rows
     trows = []
     for r in shown:
         v = metric(r)
@@ -596,8 +600,8 @@ if page.endswith('Map'):
                       'start': f"{r['start_cfs']:,.0f}", 'end': f"{r['end_cfs']:,.0f}",
                       'chg': '–' if r['change_pct'] is None else f"{r['change_pct']:+.0f}%",
                       'norm': '–' if r['pct_of_median'] is None else f"{r['pct_of_median']:.0f}%"})
-    if not show_all and len(ranked) > 20:
-        st.caption(f'Showing the 10 lowest and 10 highest of {len(ranked)} gauges with a reading.')
+    if len(shown) < len(ranked):
+        st.caption(f'Showing key rivers: {len(shown)} of {len(ranked)} gauges with a reading.')
     if trows:
         T.table(trows, [('dir_html', 'State'), ('gauge', 'Gauge'), ('river', 'River'), ('start', 'Start cfs'),
                         ('end', 'End cfs'), ('chg', 'Change'), ('norm', 'Vs normal')],
@@ -616,8 +620,9 @@ if page.endswith('Map'):
 elif page.endswith('Today'):
     cc = conditions_cached(DATA_KEY, tuple(order))
     rows = cc.value if order else []       # an empty list means "every gauge" to current_conditions
-    T.masthead(WHERE, f'Rivers on {LAST:%A}, {T.date(LAST)}',
-               'The newest daily mean flow at each gauge, next to what is normal for that date. '
+    recent = [r for r in rows if pd.Timestamp(r['date']) >= LAST - pd.Timedelta(days=3)]
+    T.masthead(WHERE, A.verdict(recent, WHERE).value,
+               f'Daily mean flow through {LAST:%A}, {T.date(LAST)}, next to what is normal for that date. '
                '"Normal" is the median for the same calendar day across the gauge\'s other years.')
     status_line()
     if not rows:
@@ -648,22 +653,33 @@ elif page.endswith('Today'):
         T.note(f'No gauge here has a reading from the 3 days before {T.date(LAST)}. The table shows the last '
                'reading from each one.')
 
-    T.section('River by river', 'Percent of median: under 75% is low for the date, over 130% is high.')
     pos = {s: i for i, s in enumerate(order)}
+    key_rivers: dict = {k: [] for k in config.KEY_RIVERS}
     by_area: dict = {}
     for r in sorted(rows, key=lambda r: pos.get(r['site_no'], 1e9)):
-        area = by_area.setdefault(reg_of.get(r['site_no'], 'Other') if region == 'All Montana' else '', {})
-        area.setdefault(r['river'], []).append(r)
-    for area, rivers in by_area.items():
-        if area:
-            T.group(area)
+        if r['river'] in key_rivers:
+            key_rivers[r['river']].append(r)
+        else:
+            area = by_area.setdefault(reg_of.get(r['site_no'], 'Other') if region == 'All Montana' else '', {})
+            area.setdefault(r['river'], []).append(r)
+
+    def cards(rivers):
         T.river_cards([{
             'name': river,
             'say': A.river_summary([g for g in gs if is_current(g)]).value,
             'lines': [(g['gauge'], T.cfs(g['flow_cfs']) + ' cfs',
                        pct_label(g['pct_of_median']) if is_current(g) else
                        f'<span class="rr-pill warn">{T.esc(T.date(g["date"], False))}</span>') for g in gs]}
-            for river, gs in rivers.items()])
+            for river, gs in rivers.items() if gs])
+
+    T.section('Key rivers', 'Percent of median: under 75% is low for the date, over 130% is high.')
+    cards(key_rivers)
+    if by_area:
+        with st.expander('All other rivers'):
+            for area, rivers in by_area.items():
+                if area:
+                    T.group(area)
+                cards(rivers)
 
     trows, group = [], None
     group_by = 'river' if region != 'All Montana' else 'region'

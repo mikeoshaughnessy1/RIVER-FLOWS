@@ -267,7 +267,7 @@ def test_usgs_download_that_runs_out_of_pages_is_an_error(monkeypatch):
     ([-20, -10, 1], 'Most Montana rivers are dropping.'),
     ([20, 10, 1], 'Most Montana rivers are rising.'),
     ([1, 2, -30], 'Most Montana rivers are steady.'),
-    ([20, -20, 1, None], 'Montana rivers are mixed this week.'),
+    ([20, -20, 1, None], 'Montana rivers are mixed.'),
 ])
 def test_verdict(changes, say):
     assert A.verdict([{'change_7d_pct': c} for c in changes], 'Montana').value == say

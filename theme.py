@@ -128,6 +128,10 @@ header[data-testid=stHeader] {{ background: transparent; height: 0; }}
 .rr-legend .keys {{ display: flex; flex-wrap: wrap; gap: .3rem .9rem; flex: 1 1 100%; }}
 .rr-legend .key {{ white-space: nowrap; color: {INK2}; }}
 .rr-sym {{ display: inline-block; width: 1.1rem; text-align: center; font-weight: 700; }}
+.rr-spark {{ display: block; width: 100%; height: 44px; margin: .5rem 0 .15rem; }}
+.rr-sparkcap {{ color: {MUTED}; font-size: .72rem; margin-bottom: .4rem; }}
+.rr-trend {{ color: {MUTED}; font-weight: 700; }}
+.rr-rcard .line span:last-child {{ white-space: nowrap; flex: none; }}
 .rr-card {{ background: {SURFACE}; border: 1px solid {RULE}; border-radius: {RADIUS}; padding: .8rem .95rem; margin: .4rem 0 .6rem; }}
 .rr-card .name {{ font: 650 1.15rem 'Fraunces', serif; color: {INK}; }}
 .rr-card .meta {{ color: {MUTED}; font-size: .8rem; margin-bottom: .45rem; }}
@@ -274,8 +278,26 @@ def river_cards(cards):
     for c in cards:
         lines = ''.join(f'<div class="line"><span>{esc(g)}</span><span><b>{esc(f)}</b> {extra}</span></div>'
                         for g, f, extra in c['lines'])
-        body += f'<div class="rr-rcard"><div class="name">{esc(c["name"])}</div><div class="say">{esc(c["say"])}</div>{lines}</div>'
+        body += (f'<div class="rr-rcard"><div class="name">{esc(c["name"])}</div><div class="say">{esc(c["say"])}</div>'
+                 f'{c.get("spark", "")}{lines}</div>')
     st.markdown(f'<div class="rr-rcards">{body}</div>', unsafe_allow_html=True)
+
+
+def sparkline(flows, normals, gauge):
+    """30 days of flow against normal for the date, as a small inline chart."""
+    w, h, pad = 240, 44, 4
+    known = [n for n in normals if n == n]
+    lo, hi = min(flows + known), max(flows + known)
+    y = lambda v: h - pad - (v - lo) / ((hi - lo) or 1) * (h - 2 * pad)
+    x = lambda i: i * w / (len(flows) - 1)
+    path = lambda vals: ' '.join(f'{x(i):.1f},{y(v):.1f}' for i, v in enumerate(vals) if v == v)
+    say = f'{gauge}: {flows[0]:,.0f} to {flows[-1]:,.0f} cfs over the last 30 days. Normal now {known[-1]:,.0f} cfs.' \
+        if known else f'{gauge}: {flows[0]:,.0f} to {flows[-1]:,.0f} cfs over the last 30 days.'
+    return (f'<svg class="rr-spark" viewBox="0 0 {w} {h}" preserveAspectRatio="none" role="img" aria-label="{esc(say)}">'
+            f'<title>{esc(say)}</title>'
+            f'<polyline points="{path(normals)}" fill="none" stroke="{MUTED}" stroke-width="1.25" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/>'
+            f'<polyline points="{path(flows)}" fill="none" stroke="{PINE}" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>'
+            f'</svg><div class="rr-sparkcap">30 days at {esc(gauge)}. Dashed is normal.</div>')
 
 
 def group(text):

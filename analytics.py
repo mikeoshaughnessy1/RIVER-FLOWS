@@ -248,7 +248,7 @@ def verdict(rows: list, where: str) -> ToolResult:
     moves = {'dropping': sum(c < -STEADY_PCT for c in ch), 'rising': sum(c > STEADY_PCT for c in ch)}
     moves['steady'] = len(ch) - moves['dropping'] - moves['rising']
     word, n = max(moves.items(), key=lambda kv: kv[1])
-    say = f'Most {where} rivers are {word}.' if n > len(ch) / 2 else f'{where} rivers are mixed this week.'
+    say = f'Most {where} rivers are {word}.' if n > len(ch) / 2 else f'{where} rivers are mixed.'
     return ToolResult('verdict', say, definition, where, len(ch))
 
 

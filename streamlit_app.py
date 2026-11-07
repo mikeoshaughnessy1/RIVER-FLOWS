@@ -284,6 +284,13 @@ def hydrograph(site, wy, height=330):
     return fig
 
 
+def trend(ch):
+    if ch is None:
+        return ''
+    arrow, word = ('↑', 'rising') if ch > A.STEADY_PCT else ('↓', 'dropping') if ch < -A.STEADY_PCT else ('→', 'steady')
+    return f'<span class="rr-trend" title="{word}, {ch:+.0f}% in 7 days" aria-label="{word}">{arrow}</span> '
+
+
 def pct_label(p):
     if p is None:
         return '<span class="rr-pill warn">no normal</span>'
@@ -383,10 +390,12 @@ if page.endswith('Map'):
     downs = sum(1 for r in live if state(metric(r))[0] == '▼')
     gauges = lambda n: f'{n} gauge' + ('' if n == 1 else 's')
     if live:
-        lo, hi = min(live, key=metric), max(live, key=metric)
+        pool = [r for r in live if r['river'] in config.KEY_RIVERS] or live
+        lo, hi = min(pool, key=metric), max(pool, key=metric)
         if mode == 'Change':
-            title = f'{gauges(downs)} dropping, {ups} rising'
-            span = f'Over the {window} day{"s" if window > 1 else ""} ending {end_label}.'
+            title = A.verdict([{'change_7d_pct': r['change_pct']} for r in live], WHERE).value
+            span = (f'{downs} dropping, {ups} rising, {len(live) - downs - ups} steady over the '
+                    f'{window} day{"s" if window > 1 else ""} ending {end_label}.')
             ends = f'Biggest drop: {lo["gauge"]}, {fmt(metric(lo))}. Biggest rise: {hi["gauge"]}, {fmt(metric(hi))}.'
         else:
             title = f'{gauges(downs)} below normal, {ups} above'
@@ -398,7 +407,6 @@ if page.endswith('Map'):
         sub = 'Seasonal gauges shut off in fall and winter. Try a date in spring or summer, or another region.'
     with head:
         T.masthead(WHERE + (' · past date' if historical else ''), title, sub)
-        status_line()
 
     # ---- legend: what is measured, over what window, and what each state means
     if mode == 'Change':
@@ -483,14 +491,14 @@ if page.endswith('Map'):
     zoom -= 1.55 if PHONE else 0
 
     # Label the biggest movers. Skip any that would land on a label already placed.
-    live_mk = [r for r in live if r['site_no'] in site_xy.index]
+    live_mk = [r for r in pool if r['site_no'] in site_xy.index] if live else []
     low_first = sorted((r for r in live_mk if state(metric(r))[0] == '▼'), key=metric)
     high_first = sorted((r for r in live_mk if state(metric(r))[0] == '▲'), key=metric, reverse=True)
     gap = 80 * 360 / (512 * 2 ** zoom)        # about 80 px, in degrees
     placed = []
     for r in [x for pair in zip(low_first, high_first) for x in pair] + low_first + high_first:
         x, y = float(site_xy.loc[r['site_no'], 'lon']), float(site_xy.loc[r['site_no'], 'lat'])
-        if len(placed) < 8 and all(abs(x - p[0]) > gap or abs(y - p[1]) > gap / 2 for p in placed):
+        if len(placed) < (4 if PHONE else 8) and all(abs(x - p[0]) > gap or abs(y - p[1]) > gap / 2 for p in placed):
             placed.append((x, y, fmt(metric(r))))
     if placed:
         # mode 'text' alone has no marker size, so Plotly can't offset the text and the layer fails
@@ -526,7 +534,7 @@ if page.endswith('Map'):
                                     text='Boat ramp: ' + pts['name'].astype(str).map(T.esc)))
     fig.update_layout(map=dict(style=T.with_land(style, names_layer) if land else style,
                                center=dict(lat=clat, lon=clon), zoom=zoom),
-                      height=440 if PHONE else 680, margin=dict(l=0, r=0, t=0, b=0),
+                      height=(360 if crowded else 440) if PHONE else 680, margin=dict(l=0, r=0, t=0, b=0),
                       uirevision=f'{region}-{find if find != ss.get("map_clicked") else "click"}',
                       hoverlabel=dict(bgcolor=T.SURFACE, bordercolor=T.RULE, font=dict(color=T.INK, size=13)))
 
@@ -551,8 +559,9 @@ if page.endswith('Map'):
                 'Drag to pan. Scroll or use the + and - buttons to zoom. Hover a gauge for its numbers, click to '
                 'select it. ')
                + ('Pick a region to see + and - marks in the dots. ' if crowded else 'A + or - in a dot shows direction. ')
-               + 'Labels mark the biggest movers. If the background map does '
+               + 'Labels mark the biggest movers on key rivers. If the background map does '
                  'not load, rivers and gauges still draw, and the table below lists every reading.')
+    status_line()
 
     if find:
         r = rows.get(find)
@@ -634,12 +643,13 @@ elif page.endswith('Today'):
     is_current = lambda r: pd.Timestamp(r['date']) >= cutoff
     fresh = [r for r in rows if is_current(r)]
     if fresh:
-        near = [r for r in fresh if r['pct_of_median'] is not None]
+        pool = [r for r in fresh if r['river'] in config.KEY_RIVERS] or fresh
+        near = [r for r in pool if r['pct_of_median'] is not None]
         hi = max(near, key=lambda r: r['pct_of_median']) if near else None
         lo = min(near, key=lambda r: r['pct_of_median']) if near else None
-        temps = [r for r in fresh if r['water_temp_max_f'] is not None and r['site_no'] not in config.THERMAL]
+        temps = [r for r in pool if r['water_temp_max_f'] is not None and r['site_no'] not in config.THERMAL]
         warm = max(temps, key=lambda r: r['water_temp_max_f']) if temps else None
-        gg = next((r for r in fresh if r['site_no'] == '06043500'), max(fresh, key=lambda r: r['flow_cfs']))
+        gg = next((r for r in fresh if r['site_no'] == '06192500'), max(fresh, key=lambda r: r['flow_cfs']))
         pm = lambda r: '–' if r is None else f"{r['pct_of_median']:.0f}%"
         T.stats([
             (gg['gauge'], f"{gg['flow_cfs']:,.0f} cfs",
@@ -663,17 +673,27 @@ elif page.endswith('Today'):
             area = by_area.setdefault(reg_of.get(r['site_no'], 'Other') if region == 'All Montana' else '', {})
             area.setdefault(r['river'], []).append(r)
 
-    def cards(rivers):
+    def spark(river, gs):
+        g = next((x for x in gs if x['site_no'] == config.DEFAULT_GAUGE.get(river.lower())), gs[0])
+        full = A._gauge(df, g['site_no'])
+        last = full[(full['date'] > LAST - pd.Timedelta(days=30)) & full['flow_cfs'].notna()]
+        normal = A.daily_normals(full, int(LAST.year) + (LAST.month >= 10))['median']
+        return T.sparkline(last['flow_cfs'].tolist(), normal.reindex(last['md'].replace('02-29', '02-28')).tolist(),
+                           g['gauge']) if len(last) > 1 else ''
+
+    def cards(rivers, sparks=False):
         T.river_cards([{
             'name': river,
+            'spark': spark(river, gs) if sparks else '',
             'say': A.river_summary([g for g in gs if is_current(g)]).value,
             'lines': [(g['gauge'], T.cfs(g['flow_cfs']) + ' cfs',
-                       pct_label(g['pct_of_median']) if is_current(g) else
+                       trend(g['change_7d_pct']) + pct_label(g['pct_of_median']) if is_current(g) else
                        f'<span class="rr-pill warn">{T.esc(T.date(g["date"], False))}</span>') for g in gs]}
             for river, gs in rivers.items() if gs])
 
-    T.section('Key rivers', 'Percent of median: under 75% is low for the date, over 130% is high.')
-    cards(key_rivers)
+    T.section('Key rivers', 'Arrows show the 7-day trend. The percent is flow vs normal for the date: '
+                            'under 75% is low, over 130% is high.')
+    cards(key_rivers, sparks=True)
     if by_area:
         with st.expander('All other rivers'):
             for area, rivers in by_area.items():
@@ -843,7 +863,7 @@ elif page.endswith('Water temp'):
                            text=yrs['days_at_or_above'], textposition='outside',
                            hovertemplate='%{x}: %{y} days, hottest %{customdata:.1f}°F<extra></extra>',
                            customdata=yrs['hottest_f']))
-    fig.update_layout(height=280, yaxis_title='Days', xaxis=dict(dtick=1, tickangle=-45))
+    fig.update_layout(height=280, yaxis_title='Days', xaxis=dict(dtick=1))
     st.plotly_chart(fig, width='stretch', config={'displayModeBar': False})
 
     years = sorted(int(y) for y in yrs['year'])

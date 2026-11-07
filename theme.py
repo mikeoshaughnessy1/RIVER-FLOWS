@@ -137,7 +137,7 @@ header[data-testid=stHeader] {{ background: transparent; height: 0; }}
 .rr-hatch .g {{ grid-column: 1 / -1; font: 650 .95rem 'Fraunces', serif; color: {INK}; margin-top: .55rem; }}
 .rr-hatch .n {{ align-self: center; }}
 .rr-hatch .c {{ height: 1.35rem; border-radius: 3px; box-shadow: inset 0 0 0 1px {RULE}; }}
-.rr-hatch .c.now {{ box-shadow: inset 0 0 0 2px {INK}; }}
+.rr-hatch .c.now {{ outline: 2px solid {INK}; outline-offset: 1px; }}
 .rr-hatchkey {{ display: flex; gap: 1rem; font-size: .78rem; color: {MUTED}; margin-bottom: .8rem; }}
 .rr-hatchkey i {{ display: inline-block; width: .85rem; height: .85rem; border-radius: 3px; margin-right: .3rem; vertical-align: -1px; box-shadow: inset 0 0 0 1px {RULE}; }}
 .rr-trend {{ color: {MUTED}; font-weight: 700; }}
@@ -338,7 +338,7 @@ def hatch_chart(rows, month):
                         f'title="{esc(r["insect"])}: {words[v] or "none"}"></span>' for i, v in enumerate(r['levels']))
         body += f'<span class="n">{esc(r["insect"])}</span>{cells}'
     keys = ''.join(f'<span><i style="background:{fill[i]}"></i>{words[i]}</span>' for i in (1, 2, 3))
-    st.markdown(f'<div class="rr-hatch" role="img" aria-label="Hatch chart by month">{head}{body}</div>'
+    st.markdown(f'<div class="rr-hatch">{head}{body}</div>'
                 f'<div class="rr-hatchkey">{keys}</div>', unsafe_allow_html=True)
 
 
@@ -354,11 +354,8 @@ def cfs(x):
     return '–' if x is None else f'{x:,.0f}'
 
 
-# ---- Map: diverging red (dropping / below normal) to blue (rising / above normal) ----
-# Mid-gray neutral instead of a pale one so steady rivers stay visible on the light basemap.
-# Checked for red-green colorblindness: neighbors stay 11+ apart (delta E), all 3:1 on the page.
-DROP, STEADY, RISE = '#9b1c2e', '#8a8983', '#17509e'
-# Smooth heat map ramp, vivid for the dark imagery: green is no change. Not colorblind safe, so dots also carry + and -
+# ---- Map ----
+# Not colorblind safe, so dots also carry + and -
 # Color only means the river moved: red dropping, blue rising, darker for a bigger move. Steady stays pale.
 DIVERGING = [(0.0, '#c8102e'), (0.42, '#ff8a3d'), (0.5, '#e4e0d6'), (0.58, '#4cc3ff'), (1.0, '#1a3cff')]
 OFF_SEASON = '#8f8b82'

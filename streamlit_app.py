@@ -239,8 +239,10 @@ AGE_DAYS = int((TODAY - LAST).days)
 STALE = AGE_DAYS > 3
 recent_flow = set(df.loc[(df['date'] > LAST - pd.Timedelta(days=4)) & df['flow_cfs'].notna(), 'site_no'].unique())
 WHERE = 'Montana and Yellowstone' if region == 'All Montana' else region
-SEASON = A.season(LAST).value
-hatching_line = (lambda n: f'Hatching now: {", ".join(n).lower()}.' if n else '')(A.hatches(LAST).value['now'])
+NOW = pd.Timestamp.now(tz='America/Denver')      # seasons follow the calendar, even if the data is old
+SEASON = A.season(NOW).value
+hatch = A.hatches(NOW)
+hatching_line = f'Hatching now: {", ".join(hatch.value["now"])}.' if not hatch.error and hatch.value['now'] else ''
 kicker = f'{WHERE} · {SEASON["name"]}' if SEASON else WHERE
 
 
@@ -302,9 +304,9 @@ def trend(ch):
 def pct_label(p):
     if p is None:
         return '<span class="rr-pill warn">no normal</span>'
-    if p < 75:
+    if p < A.LOW_PCT:
         return f'<span class="rr-pill low">▼ {p:,.0f}%</span>'
-    return f'<span class="rr-pill high">▲ {p:,.0f}%</span>' if p > 130 else f'<span class="rr-pill">{p:,.0f}%</span>'
+    return f'<span class="rr-pill high">▲ {p:,.0f}%</span>' if p > A.HIGH_PCT else f'<span class="rr-pill">{p:,.0f}%</span>'
 
 
 # ---------------- 1 Map ----------------
@@ -381,8 +383,8 @@ if page.endswith('Map'):
         if v is None:
             return '○', 'No reading'
         if mode == 'Change':
-            return ('▲', 'Rising') if v >= 5 else (('▼', 'Dropping') if v <= -5 else ('●', 'Steady'))
-        return ('▲', 'Above normal') if v > 130 else (('▼', 'Below normal') if v < 75 else ('●', 'Near normal'))
+            return ('▲', 'Rising') if v > A.STEADY_PCT else (('▼', 'Dropping') if v < -A.STEADY_PCT else ('●', 'Steady'))
+        return ('▲', 'Above normal') if v > A.HIGH_PCT else (('▼', 'Below normal') if v < A.LOW_PCT else ('●', 'Near normal'))
 
     def color_of(sn):
         r = rows.get(sn)
@@ -424,11 +426,12 @@ if page.endswith('Map'):
         what = (f'Color means the river moved in the last <b>{window} day{"s" if window > 1 else ""}</b>. '
                 'Darker is a bigger move.')
         keys = [('▲', T.diverging_color(1), 'Rising'), ('▼', T.diverging_color(0), 'Dropping'),
-                ('●', T.diverging_color(.5), 'Steady'), ('○', T.STONE, 'No reading')]
+                ('●', T.STONE, 'Steady'), ('○', T.STONE, 'No reading')]
     else:
-        what = 'Color means the river is well off normal for this date. Darker is further off.'
+        what = (f'Color means the river is under {A.LOW_PCT}% or over {A.HIGH_PCT}% of normal for this date. '
+                'Darker is further off.')
         keys = [('▲', T.diverging_color(1), 'High'), ('▼', T.diverging_color(0), 'Low'),
-                ('●', T.diverging_color(.5), 'Near normal'), ('○', T.STONE, 'No reading')]
+                ('●', T.STONE, 'Near normal'), ('○', T.STONE, 'No reading or no normal yet')]
     if ramps:
         keys.append(('●', T.PINE, 'Boat ramp'))
     hist_note = ' <span class="rr-pill warn">Past date</span>' if historical else ''
@@ -487,13 +490,15 @@ if page.endswith('Map'):
     fig.add_trace(go.Scattermap(lon=lons, lat=lats, mode='markers', hoverinfo='skip', showlegend=False,
                                 marker=dict(size=6 if crowded else 10, color=[shade(v) for v in vals])))
     # The dot's own direction mark, so a colorblind reader can see it without hovering
-    marked = [(x, y, '+' if state(v)[0] == '▲' else '-') for x, y, v in zip(lons, lats, vals)
+    marked = [(x, y, '+' if state(v)[0] == '▲' else '-', T.INK if abs(to_t(v) - .5) < .2 else 'white')
+              for x, y, v in zip(lons, lats, vals)
               if state(v)[0] in ('▲', '▼')]
-    if marked and not crowded:
-        fig.add_trace(go.Scattermap(lon=[m[0] for m in marked], lat=[m[1] for m in marked], mode='markers+text',
-                                    text=[m[2] for m in marked], textposition='middle center', hoverinfo='skip',
+    for ink in {m[3] for m in marked} if not crowded else ():     # this map takes one text color per trace
+        some = [m for m in marked if m[3] == ink]
+        fig.add_trace(go.Scattermap(lon=[m[0] for m in some], lat=[m[1] for m in some], mode='markers+text',
+                                    text=[m[2] for m in some], textposition='middle center', hoverinfo='skip',
                                     marker=dict(size=1, opacity=0),
-                                    textfont=dict(size=11, color='white'), showlegend=False))
+                                    textfont=dict(size=11, color=ink), showlegend=False))
 
     clat, clon, zoom = config.REGION_VIEW.get(region, config.REGION_VIEW['All Montana'])
     zoom -= 1.55 if PHONE else 0
@@ -699,7 +704,7 @@ elif page.endswith('Today'):
             for river, gs in rivers.items() if gs])
 
     T.section('Key rivers', 'The arrow is the last week. The percent is how the river compares to normal '
-                            'for this date, across every year on record.')
+                            f'for this date: under {A.LOW_PCT}% is low, over {A.HIGH_PCT}% is high.')
     cards(key_rivers, sparks=True)
     if by_area:
         with st.expander('All other rivers'):
@@ -909,11 +914,14 @@ elif page.endswith('Water temp'):
 # ---------------- Hatches ----------------
 
 elif page.endswith('Hatches'):
-    hv = A.hatches(LAST).value
-    T.masthead('Hatches', f'{LAST:%B} on the water',
-               'What the bugs are doing, month by month. Every river runs on its own clock, so call this a '
-               'good guess and trust what you see on the water.')
-    T.hatch_chart(hv['rows'], LAST.month)
+    T.masthead('Hatches', f'{NOW:%B} on the water',
+               f'{hatching_line} Every river runs on its own clock, so call this a good guess and trust '
+               'what you see on the water.')
+    status_line()
+    if hatch.error:
+        T.note(hatch.error, error=True)
+        st.stop()
+    T.hatch_chart(hatch.value['rows'], NOW.month)
     st.caption('Rough Rocky Mountain timing. The outlined column is this month.')
 
 # ---------------- 4 Ask ----------------

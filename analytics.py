@@ -12,6 +12,8 @@ import config
 
 MIN_NORMAL_YEARS = 5          # need at least this many other years to call something "normal"
 FULL_YEAR_DAYS = 330          # a water year with fewer flow days than this is "partial"
+MOVE_MIN_CFS = 20             # below this, a big percent move is only a trickle
+LOW_PCT, HIGH_PCT = 75, 130   # percent of normal that counts as low or high
 STEADY_PCT = 5                # a 7-day change inside this is steady
 MIN_CHANGE_CFS = 1.0          # below this, percent change is not reported
 
@@ -174,6 +176,7 @@ def current_conditions(df, sites: list | None = None, as_of: str | None = None) 
         md = '02-28' if last['md'] == '02-29' else last['md']
         n = norms.loc[md] if md in norms.index else None
         week = g[g['date'] == last['date'] - pd.Timedelta(days=7)]
+        two = g[g['date'] == last['date'] - pd.Timedelta(days=2)]
         prior = full[(full['md'] == last['md']) & (full['water_year'] != last['water_year'])]
         temps = full[(full['date'] <= last['date']) & (full['date'] > last['date'] - pd.Timedelta(days=3))
                      & full['temp_max_f'].notna()]
@@ -185,6 +188,8 @@ def current_conditions(df, sites: list | None = None, as_of: str | None = None) 
             'years_of_record': None if n is None else int(n['years']),
             'change_7d_pct': None if week.empty or not week['flow_cfs'].iloc[0]
                              else float((last['flow_cfs'] / week['flow_cfs'].iloc[0] - 1) * 100),
+            'change_2d_pct': None if two.empty or not two['flow_cfs'].iloc[0]
+                             else float((last['flow_cfs'] / two['flow_cfs'].iloc[0] - 1) * 100),
             'water_temp_max_f': None if temps.empty else float(temps.iloc[-1]['temp_max_f']),
             'water_temp_mean_f': None if temps.empty else float(temps.iloc[-1]['temp_mean_f']),
             'status': last['flow_status'], 'flags': last['flow_flags'],
@@ -212,17 +217,22 @@ def current_conditions(df, sites: list | None = None, as_of: str | None = None) 
 def _flow_note(pct):
     if pct is None:
         return ''
-    return 'Low for this time of year.' if pct < 75 else ('High for this time of year.' if pct > 130 else 'About where it ought to be.')
+    return 'Low for this time of year.' if pct < LOW_PCT else ('High for this time of year.' if pct > HIGH_PCT else 'About where it ought to be.')
 
 
 def _move_note(rows):
-    """A nudge when a river jumps or falls fast. Flow can't see clarity, so it says might."""
-    ch = [(r['change_7d_pct'], r['gauge']) for r in rows if r.get('change_7d_pct') is not None]
-    if ch and max(ch)[0] >= 30:
-        return f'Coming up at {max(ch)[1]}. Might be off color.'
-    if ch and min(ch)[0] <= -20:
-        return f'Dropping fast at {min(ch)[1]}.'
-    return ''
+    """A nudge when a river jumps or falls fast. Flow can't see clarity, so it says might. Dam
+    release rivers get no clarity guess: a release raises flow without mud."""
+    moved = [r for r in rows if r.get('change_7d_pct') is not None and r.get('flow_cfs', 0) >= MOVE_MIN_CFS]
+    if not moved:
+        return ''
+    hi = max(moved, key=lambda r: r['change_7d_pct'])
+    lo = min(moved, key=lambda r: r['change_7d_pct'])
+    if hi['change_7d_pct'] >= 30:
+        if (hi.get('change_2d_pct') or 0) < 0:      # the week's rise already peaked
+            return f'Dropping back at {hi["gauge"]} after a bump.'
+        return f'Coming up at {hi["gauge"]}.' + ('' if hi.get('river') in config.DAM_RELEASE else ' Might be off color.')
+    return f'Dropping fast at {lo["gauge"]}.' if lo['change_7d_pct'] <= -20 else ''
 
 
 def _temp_note(temp):
@@ -275,8 +285,10 @@ def season(date, state='MT') -> ToolResult:
 
 def hatches(date) -> ToolResult:
     """The hatch chart, plus what is at good or peak level this month."""
+    if HATCHES.empty:
+        return ToolResult('hatches', error='The hatch chart is missing.')
     m = pd.Timestamp(date).month
-    rows = [{'group': r['group'], 'insect': r['insect'], 'levels': [int(r[str(i)]) for i in range(1, 13)]}
+    rows = [{'group': r['group'], 'insect': r['insect'], 'levels': [int(r[str(i)] or 0) for i in range(1, 13)]}
             for r in HATCHES.to_dict('records')]
     now = [r['insect'] for r in rows if r['levels'][m - 1] >= 2]
     return ToolResult('hatches', {'rows': rows, 'now': now}, 'Rough Rocky Mountain timing, 0 none to 3 peak.', str(m), len(rows))

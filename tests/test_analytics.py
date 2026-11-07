@@ -295,7 +295,17 @@ def test_hatches_now():
 
 
 def test_river_note_flags_a_fast_rise():
-    rows = [{'gauge': 'A', 'river': 'R', 'pct_of_median': 100, 'change_7d_pct': 45},
-            {'gauge': 'B', 'river': 'R', 'pct_of_median': 100, 'change_7d_pct': 2}]
-    assert 'Coming up at A' in A.river_summary(rows).value
+    rows = [{'gauge': 'A', 'river': 'R', 'pct_of_median': 100, 'change_7d_pct': 45, 'change_2d_pct': 10, 'flow_cfs': 900},
+            {'gauge': 'B', 'river': 'R', 'pct_of_median': 100, 'change_7d_pct': 2, 'flow_cfs': 900}]
+    assert 'Coming up at A. Might be off color.' in A.river_summary(rows).value
+
+
+@pytest.mark.parametrize('row,say', [
+    ({'change_7d_pct': 40, 'change_2d_pct': -8, 'flow_cfs': 700}, 'Dropping back at A after a bump.'),
+    ({'change_7d_pct': 40, 'change_2d_pct': 8, 'flow_cfs': 700, 'river': 'Missouri'}, 'Coming up at A.'),
+    ({'change_7d_pct': 150, 'change_2d_pct': 8, 'flow_cfs': 1}, ''),
+    ({'change_7d_pct': -35, 'change_2d_pct': -8, 'flow_cfs': 700}, 'Dropping fast at A.'),
+])
+def test_move_note(row, say):
+    assert A._move_note([{'gauge': 'A', **row}]) == say
 

@@ -367,7 +367,7 @@ if page.endswith('Map'):
     def color_of(sn):
         r = rows.get(sn)
         v = metric(r) if r else None
-        return None if v is None else round(to_t(v) * 20) / 20     # 21 color steps
+        return None if v is None else round(to_t(v) * 40) / 40     # 41 color steps, so the 5% band lands on a step
 
     def shade(v):
         return T.OFF_SEASON if v is None else T.diverging_color(to_t(v))
@@ -402,14 +402,14 @@ if page.endswith('Map'):
         what = (f'<b>Change in daily mean flow</b> over the <b>{window} day{"s" if window > 1 else ""}</b> '
                 f'ending <b>{end_label}</b>.')
         ticks = ['-50%', '-25%', '0', '+25%', '+50%']
-        keys = [('▼', T.DROP, 'Dropping 5% or more'), ('●', T.STEADY, 'Within 5%'),
-                ('▲', T.RISE, 'Rising 5% or more'), ('○', T.STONE, 'No reading near this date')]
+        keys = [('▼', T.diverging_color(0), 'Dropping 5% or more'), ('●', T.diverging_color(.5), 'Within 5%'),
+                ('▲', T.diverging_color(1), 'Rising 5% or more'), ('○', T.STONE, 'No reading near this date')]
     else:
         what = (f'<b>Flow vs normal</b> on <b>{end_label}</b>: daily mean as a percent of the median '
                 f'for that date in other years.')
         ticks = ['50%', '71%', '100%', '141%', '200%']
-        keys = [('▼', T.DROP, 'Below 90% of normal'), ('●', T.STEADY, '90 to 110%'),
-                ('▲', T.RISE, 'Above 110% of normal'), ('○', T.STONE, 'No reading or no normal yet')]
+        keys = [('▼', T.diverging_color(0), 'Below 90% of normal'), ('●', T.diverging_color(.5), '90 to 110%'),
+                ('▲', T.diverging_color(1), 'Above 110% of normal'), ('○', T.STONE, 'No reading or no normal yet')]
     if ramps:
         keys.append(('●', T.PINE, 'Boat ramp'))
     hist_note = ' <span class="rr-pill warn">Past date</span>' if historical else ''
@@ -425,11 +425,11 @@ if page.endswith('Map'):
     for f in feats:
         sn = f['properties']['site_no']
         flow = mean_flow.get(sn, 0)
-        line = batches.setdefault((color_of(sn), 3.2 if flow >= 1000 else (2.2 if flow >= 100 else 1.5)), ([], []))
+        line = batches.setdefault((color_of(sn), 3.8 if flow >= 1000 else (2.8 if flow >= 100 else 2)), ([], []))
         for part in f['geometry']['coordinates']:
             line[0].extend([p[0] for p in part] + [None])
             line[1].extend([p[1] for p in part] + [None])
-    # A light edge under every river keeps the colors readable on the imagery
+    # A dark edge under every river makes the colors stand out from the imagery
     edges = {}
     for (_, w), (lon, lat) in batches.items():
         edge = edges.setdefault(w, ([], []))
@@ -437,7 +437,7 @@ if page.endswith('Map'):
         edge[1].extend(lat)
     for w, (lon, lat) in sorted(edges.items()):
         fig.add_trace(go.Scattermap(lon=lon, lat=lat, mode='lines', hoverinfo='skip', showlegend=False, below=names_layer,
-                                    line=dict(color='rgba(255,255,255,.6)', width=w + 1.1)))
+                                    line=dict(color='rgba(0,0,0,.5)', width=w + 1.4)))
     # Pale "no reading" lines first, then thin to thick, so the big rivers read on top
     for (t, w), (lon, lat) in sorted(batches.items(), key=lambda kv: (kv[0][0] is not None, kv[0][1])):
         fig.add_trace(go.Scattermap(lon=lon, lat=lat, mode='lines', hoverinfo='skip', showlegend=False, below=names_layer,

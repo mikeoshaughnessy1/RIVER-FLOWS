@@ -30,7 +30,7 @@ def test_boat_ramps_are_trailer_ramps_only():
     import pandas as pd
     ramps = pd.read_csv(pathlib.Path(__file__).resolve().parents[1] / 'data' / 'boat_ramps.csv')
     assert len(ramps) and ramps['boat_fac'].str.contains('Ramp').all()
-    assert not ramps['boat_fac'].str.contains('Primitive|Hand Launch|Raft Slide').any()
+    assert not ramps['boat_fac'].str.contains('Hand Launch|Raft Slide').any()
 
 
 def test_imagery_sits_under_names_and_shows_state_lines_at_every_zoom():

@@ -514,10 +514,11 @@ if page.endswith('Map'):
                                 showlegend=False))
     pts = boat_ramps() if ramps else None
     if ramps and len(pts):
-        fig.add_trace(go.Scattermap(lon=pts['lon'], lat=pts['lat'], mode='markers', showlegend=False,
-                                    marker=dict(size=11, color='white'), hoverinfo='skip'))
-        fig.add_trace(go.Scattermap(lon=pts['lon'], lat=pts['lat'], mode='markers', showlegend=False,
-                                    marker=dict(size=7, color=T.PINE), hoverinfo='text',
+        far = zoom < 6.5        # at state zoom full-size ramps bury the rivers and gauges
+        fig.add_trace(go.Scattermap(lon=pts['lon'], lat=pts['lat'], mode='markers', showlegend=False, below=names_layer,
+                                    marker=dict(size=6 if far else 11, color='white'), hoverinfo='skip'))
+        fig.add_trace(go.Scattermap(lon=pts['lon'], lat=pts['lat'], mode='markers', showlegend=False, below=names_layer,
+                                    marker=dict(size=3.5 if far else 7, color=T.PINE), hoverinfo='text',
                                     text=(pts['name'] + ': ' + pts['boat_fac']).astype(str).map(T.esc)))
     fig.update_layout(map=dict(style=T.with_land(style, names_layer) if land else style,
                                center=dict(lat=clat, lon=clon), zoom=zoom),

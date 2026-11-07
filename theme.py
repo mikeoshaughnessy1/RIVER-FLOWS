@@ -149,6 +149,7 @@ header[data-testid=stHeader] {{ background: transparent; height: 0; }}
 .rr-lab {{ font: 600 .68rem 'Inter'; letter-spacing: .12em; text-transform: uppercase; color: {PINE}; margin-top: .6rem; }}
 .rr-colophon {{ border-top: 1px solid {RULE}; margin-top: 2.5rem; padding-top: .7rem; color: {MUTED}; font-size: .78rem; line-height: 1.5; }}
 
+.maplibregl-ctrl-attrib {{ font-size: 10px; line-height: 1.3; }}
 @media (max-width: 760px) {{
   .block-container {{ padding-left: 1rem; padding-right: 1rem; padding-top: 1rem; }}
   .st-key-nav [role=radiogroup] {{ gap: .8rem; }}

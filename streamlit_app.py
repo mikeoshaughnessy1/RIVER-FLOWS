@@ -933,7 +933,7 @@ elif page.endswith('Ask'):
 else:
     T.masthead('Data', 'Where the numbers come from',
                f'USGS daily values for {df["site_no"].nunique()} gauges from water '
-               'year 2001 on. A reading is the mean flow for one whole day, so the newest one is usually yesterday.')
+               'year 2022 on. Normal for the date uses every year from 2001. A reading is the mean flow for one whole day, so the newest one is usually yesterday.')
     status_line()
     T.stats([('Daily rows', f'{len(df):,}', 'one per gauge per day'),
              ('Gauges', str(df['site_no'].nunique()), f"{len(recent_temp)} with recent water temp"),

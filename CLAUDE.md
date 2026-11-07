@@ -9,5 +9,5 @@
 - USGS: use api.waterdata.usgs.gov for anything the app or scripts run (legacy waterservices
   retires by Feb 2027). The history snapshot was pulled once from legacy in Nov 2026.
   Keys live in Streamlit secrets, never in the repo.
-- 1.5M rows: never filter `df[df.site_no == x]` in a loop; use `analytics._gauge(df, x)`.
+- Large table: never filter `df[df.site_no == x]` in a loop; use `analytics._gauge(df, x)`.
 - Writing in the app and docs: plain words, short sentences, no em dashes.

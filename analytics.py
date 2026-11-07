@@ -6,6 +6,7 @@ An unknown gauge or a bad date returns `error` with the valid options. Nothing i
 """
 from __future__ import annotations
 from dataclasses import dataclass, field, asdict
+import pathlib
 import pandas as pd
 import config
 
@@ -88,9 +89,29 @@ def _years_note(df_site, col='flow_cfs'):
 
 # ---------- normals ----------
 
+_DATA = pathlib.Path(__file__).resolve().parent / 'data'
+
+
+def _by_site(name: str, index=None) -> dict:
+    """A saved table from scripts/trim_history.py, split by gauge. Empty if the file is missing."""
+    path = _DATA / name
+    if not path.exists():
+        return {}
+    t = pd.read_csv(path, dtype={'site_no': str, 'md': str})
+    return {s: (g.set_index(index) if index else g).drop(columns='site_no') for s, g in t.groupby('site_no')}
+
+
+NORMALS = _by_site('normals.csv.gz', 'md')    # all years, so normal stays strong with 5 years of daily rows
+PEAKS = _by_site('peaks.csv.gz')
+
+
 def daily_normals(g: pd.DataFrame, exclude_wy: int | None, col='flow_cfs') -> pd.DataFrame:
     """Median and 10th/25th/75th/90th percentiles of a column for each calendar day (MM-DD),
-    across every water year except `exclude_wy`. Feb 29 borrows from Feb 28."""
+    across every water year except `exclude_wy`. Feb 29 borrows from Feb 28.
+    shortcut: saved flow normals include past years a viewer may be looking at, a small effect
+    over 25 years. Upgrade by saving a table per year if that ever matters."""
+    if col == 'flow_cfs' and len(g) and g['site_no'].iloc[0] in NORMALS:
+        return NORMALS[g['site_no'].iloc[0]]
     hist = g[g['water_year'] != exclude_wy] if exclude_wy else g
     hist = hist[hist[col].notna()]
     if hist.empty:   # brand-new gauge: no other years yet
@@ -337,7 +358,7 @@ def runoff_timing_trend(df, site) -> ToolResult:
     r = annual_peaks(df, site)
     if r.error:
         return ToolResult('runoff_timing_trend', error=r.error)
-    p = pd.DataFrame(r.value)
+    p = PEAKS.get(str(site), pd.DataFrame(r.value))     # the saved table reaches back past the 5 kept years
     p = p[p['days_with_data'] >= FULL_YEAR_DAYS]
     if len(p) < 8:
         return ToolResult('runoff_timing_trend', error='Need at least 8 full water years for a trend.')

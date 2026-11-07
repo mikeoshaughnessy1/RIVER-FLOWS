@@ -313,8 +313,7 @@ LAND_TILES = ('https://gis.blm.gov/arcgis/rest/services/lands/BLM_Natl_SMA_Cache
 def with_imagery(style):
     """The light style with USGS satellite imagery under the roads and names, and clear state lines."""
     at = next(i for i, x in enumerate(style['layers']) if x['id'] == 'boundary_county')
-    layer = {'id': 'imagery', 'type': 'raster', 'source': 'imagery',
-             'paint': {'raster-saturation': .3, 'raster-brightness-min': .14, 'raster-hue-rotate': 18}}
+    layer = {'id': 'imagery', 'type': 'raster', 'source': 'imagery'}    # true color: no paint adjustments
     lines = {'line-color': '#ffffff', 'line-width': 1.6, 'line-opacity': .85}
     names = {'text-color': '#ffffff', 'text-halo-color': 'rgba(0,0,0,.65)', 'text-halo-width': 1.2}
     top = []

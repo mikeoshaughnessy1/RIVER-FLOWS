@@ -519,7 +519,7 @@ if page.endswith('Map'):
                                     marker=dict(size=6 if far else 11, color='white'), hoverinfo='skip'))
         fig.add_trace(go.Scattermap(lon=pts['lon'], lat=pts['lat'], mode='markers', showlegend=False, below=names_layer,
                                     marker=dict(size=3.5 if far else 7, color=T.PINE), hoverinfo='text',
-                                    text=(pts['name'] + ': ' + pts['boat_fac']).astype(str).map(T.esc)))
+                                    text='Boat ramp: ' + pts['name'].astype(str).map(T.esc)))
     fig.update_layout(map=dict(style=T.with_land(style, names_layer) if land else style,
                                center=dict(lat=clat, lon=clon), zoom=zoom),
                       height=440 if PHONE else 680, margin=dict(l=0, r=0, t=0, b=0),

@@ -61,12 +61,13 @@ def reaches():
 def fetch_style():
     r = requests.get(T.STYLE_URL, timeout=4)
     r.raise_for_status()
-    return {**T.with_imagery(r.json()), 'id': 'field'}     # without a stable id Plotly reloads the style and drops layers
+    return r.json()
 
 
 def basemap():
     try:
-        return fetch_style()
+        # Styled outside the cache, so a theme change shows up without waiting a day.
+        return {**T.with_imagery(fetch_style()), 'id': 'field'}     # without a stable id Plotly reloads the style and drops layers
     except (requests.RequestException, ValueError):      # raises, so a failure isn't cached for a day
         return T.BLANK_MAP
 

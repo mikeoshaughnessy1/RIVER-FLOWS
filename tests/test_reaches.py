@@ -46,3 +46,8 @@ def test_imagery_sits_under_names_and_shows_state_lines_at_every_zoom():
     assert 'boundary_county' not in ids and 'water_shadow' not in ids
     state = next(x for x in out['layers'] if x['id'] == 'boundary_state')
     assert 'minzoom' not in state and state['filter'] == ['==', ['get', 'kind_detail'], 4]
+
+
+def test_cached_style_is_raw_so_theme_changes_show_right_away():
+    src = (pathlib.Path(__file__).resolve().parents[1] / 'streamlit_app.py').read_text()
+    assert 'with_imagery' not in src.split('def fetch_style')[1].split('def basemap')[0]

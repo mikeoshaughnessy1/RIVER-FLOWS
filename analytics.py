@@ -101,8 +101,15 @@ def _by_site(name: str, index=None) -> dict:
     return {s: (g.set_index(index) if index else g).drop(columns='site_no') for s, g in t.groupby('site_no')}
 
 
-NORMALS = _by_site('normals.csv.gz', 'md')    # all years, so normal stays strong with 5 years of daily rows
+NORMALS = _by_site('normals.csv.gz', 'md')    # all years, so normal stays strong with 10 years of daily rows
 PEAKS = _by_site('peaks.csv.gz')
+
+
+def _saved(g, table):
+    """A gauge's saved table, unless the data is an upload, which must speak for itself."""
+    if not len(g) or ('uploaded' in g and g['uploaded'].iloc[0]):
+        return None
+    return table.get(g['site_no'].iloc[0])
 
 
 def daily_normals(g: pd.DataFrame, exclude_wy: int | None, col='flow_cfs') -> pd.DataFrame:
@@ -110,8 +117,9 @@ def daily_normals(g: pd.DataFrame, exclude_wy: int | None, col='flow_cfs') -> pd
     across every water year except `exclude_wy`. Feb 29 borrows from Feb 28.
     shortcut: saved flow normals include past years a viewer may be looking at, a small effect
     over 25 years. Upgrade by saving a table per year if that ever matters."""
-    if col == 'flow_cfs' and len(g) and g['site_no'].iloc[0] in NORMALS:
-        return NORMALS[g['site_no'].iloc[0]]
+    saved = _saved(g, NORMALS)
+    if col == 'flow_cfs' and saved is not None:
+        return saved
     hist = g[g['water_year'] != exclude_wy] if exclude_wy else g
     hist = hist[hist[col].notna()]
     if hist.empty:   # brand-new gauge: no other years yet
@@ -194,8 +202,8 @@ def current_conditions(df, sites: list | None = None, as_of: str | None = None) 
         caveats.append('Not current (no flow in the last 3 days of the data): ' + ', '.join(stale))
     return ToolResult('current_conditions', out,
                       'Latest daily mean flow (cfs). Median = median of the same calendar day in '
-                      'every other water year on record at that gauge. Percentile = share of those '
-                      'past days that were lower. Water temp = most recent daily max/mean within 3 days.',
+                      'every other water year on record at that gauge. Percentile = share of past days '
+                      'in the last 10 years that were lower. Water temp = most recent daily max/mean within 3 days.',
                       f'As of {cutoff.date()}', used, caveats)
 
 
@@ -329,13 +337,19 @@ def annual_peaks(df, site, water_years: list | None = None) -> ToolResult:
     if err:
         return ToolResult('annual_peaks', error=err)
     g = _gauge(df, sn).dropna(subset=['flow_cfs'])
+    # Years before the kept daily rows, and the first kept year (it starts mid water year), come from the saved table
+    saved = _saved(g, PEAKS)
+    older = saved[saved['water_year'] <= g['water_year'].min()] if saved is not None else pd.DataFrame(columns=['water_year'])
+    g = g[~g['water_year'].isin(older['water_year'])]
     if water_years:
-        bad = [y for y in water_years if y not in set(g['water_year'])]
+        have = set(g['water_year']) | set(older['water_year'])
+        bad = [y for y in water_years if y not in have]
         if bad:
             return ToolResult('annual_peaks', error=f'Water year(s) {bad} not in the data for {label}. '
-                              f'Available: {g["water_year"].min()}-{g["water_year"].max()}.')
+                              f'Available: {min(have)}-{max(have)}.')
         g = g[g['water_year'].isin(water_years)]
-    rows, partial = [], []
+        older = older[older['water_year'].isin(water_years)]
+    rows, partial = older.to_dict('records'), []
     for wy, w in g.groupby('water_year'):
         i = w['flow_cfs'].idxmax()
         d = w.loc[i, 'date']
@@ -358,7 +372,7 @@ def runoff_timing_trend(df, site) -> ToolResult:
     r = annual_peaks(df, site)
     if r.error:
         return ToolResult('runoff_timing_trend', error=r.error)
-    p = PEAKS.get(str(site), pd.DataFrame(r.value))     # the saved table reaches back past the 5 kept years
+    p = pd.DataFrame(r.value)
     p = p[p['days_with_data'] >= FULL_YEAR_DAYS]
     if len(p) < 8:
         return ToolResult('runoff_timing_trend', error='Need at least 8 full water years for a trend.')

@@ -27,14 +27,16 @@ T.inject()
 # ---------------- data ----------------
 
 @st.cache_resource(show_spinner=False, max_entries=2)
-def build_cached(daily_bytes: bytes, sites_bytes: bytes, recent_bytes: bytes):
+def build_cached(daily_bytes: bytes, sites_bytes: bytes, recent_bytes: bytes, uploaded: bool = False):
     # Keyed on file CONTENTS, so changed data never shows old numbers. A shared resource, not
     # cache_data: that hands every rerun a new 100 MB copy, and analytics._groups kept a split
     # of each copy. Nothing may change this table in place.
     daily = dp.read_csv(daily_bytes)
     if recent_bytes:
         daily = dp.overlay(daily, dp.read_csv(recent_bytes))
-    return dp.build(daily, dp.read_csv(sites_bytes))
+    out, sites, notes = dp.build(daily, dp.read_csv(sites_bytes))
+    out['uploaded'] = uploaded        # an upload gets normals from its own rows, not the saved table
+    return out, sites, notes
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -141,7 +143,7 @@ elif 'recent_bytes' not in ss:
 # Streamlit forgets a widget's value when its page isn't on screen. Re-assigning keeps the
 # map date, window, region and gauge picks when you move between sections and come back.
 PERSIST = ('region', 'map_land', 'map_ramps', 'map_mode', 'map_window', 'map_date', 'map_all', 'map_find', 'today_gauge', 'today_wy',
-           'hist_gauge', 'hist_win', 'temp_gauge', 'temp_year')
+           'hist_gauge', 'hist_win', 'temp_gauge', 'temp_year', 'more')
 for _k in PERSIST:
     if _k in ss:
         ss[_k] = ss[_k]
@@ -158,7 +160,7 @@ with st.container(key='nav'):
         page = st.radio('More', MORE, key='more', horizontal=True, label_visibility='collapsed')
 
 try:
-    df, sites, notes = build_cached(ss.daily_bytes, ss.sites_bytes, ss.recent_bytes)
+    df, sites, notes = build_cached(ss.daily_bytes, ss.sites_bytes, ss.recent_bytes, ss.daily_src.startswith('Uploaded'))
 except ValueError as e:
     T.masthead('Rockies River Report', 'The data could not be loaded',
                'The file that was loaded is missing something the app needs. Nothing below is shown '
@@ -232,7 +234,6 @@ def keep_valid(key, options):
         del ss[key]
 
 
-warns = [n for n in notes if n['level'] == 'warn']
 TODAY = pd.Timestamp.now(tz='America/Denver').tz_localize(None).normalize()
 AGE_DAYS = int((TODAY - LAST).days)
 STALE = AGE_DAYS > 3
@@ -243,16 +244,11 @@ WHERE = 'Montana and Yellowstone' if region == 'All Montana' else region
 def status_line():
     """Observation date vs how the data got here, on every page."""
     reporting = sum(1 for s in order if s in recent_flow)
-    parts = [('Newest reading', f'{T.date(LAST)} daily mean'), ('Data', ss.data_origin),
+    parts = [('Newest reading', T.date(LAST)), ('Data', ss.data_origin),
              f'{reporting} of {len(order)} gauges reporting']
     if STALE:
         parts.append(f'The newest reading is {AGE_DAYS} days old. Refresh it on the Data page.')
     T.status(parts, stale=STALE)
-    if warns and page != 'Data':
-        def see_notes():
-            ss['page'], ss['more'] = 'More', 'Data'
-        st.button(f'⚠️ {len(warns)} data note{"s" if len(warns) > 1 else ""}: see Data', key='to_data',
-                  type='tertiary', on_click=see_notes)
 
 
 # ---------------- helpers ----------------
@@ -273,7 +269,7 @@ def hydrograph(site, wy, height=330):
     fig.add_trace(go.Scatter(x=days, y=n['p25'], fill='tonexty', fillcolor='rgba(143,181,179,.45)',
                              line=dict(width=0), name='25th to 75th', hoverinfo='skip'))
     fig.add_trace(go.Scatter(x=days, y=n['median'], line=dict(color=T.MUTED, width=1, dash='dot'),
-                             name='Median', hovertemplate='%{y:,.0f} cfs median<extra></extra>'))
+                             name='Normal', hovertemplate='%{y:,.0f} cfs normal<extra></extra>'))
     fig.add_trace(go.Scatter(x=cur.index, y=cur.values, line=dict(color=T.RIVER, width=2.2),
                              name=f'Water year {wy}', hovertemplate='%{x|%b %d}: %{y:,.0f} cfs<extra></extra>'))
     fig.update_layout(height=height, yaxis_title='Flow (cfs)', hovermode='x unified')
@@ -323,7 +319,7 @@ if page.endswith('Map'):
             ramps = st.toggle('Boat ramps', key='map_ramps', help='Montana FWP ramps for trailered boats. Check the site before you tow.')
     mode = c1.radio('Color rivers by', ['Change', 'Vs normal'], horizontal=True, key='map_mode',
                     help='Change: percent change in daily flow over the window. Vs normal: flow on the '
-                         'end date as a percent of the median for that calendar day in other years.')
+                         'end date as a percent of normal for that date.')
     default('map_window', 7)
     window = c2.select_slider('Change window', [1, 3, 7, 14, 30], key='map_window',
                               format_func=lambda d: f'{d} day' + ('s' if d > 1 else ''),
@@ -391,16 +387,17 @@ if page.endswith('Map'):
     gauges = lambda n: f'{n} gauge' + ('' if n == 1 else 's')
     if live:
         pool = [r for r in live if r['river'] in config.KEY_RIVERS] or live
+        on_key = ' on a key river' if pool is not live else ''
         lo, hi = min(pool, key=metric), max(pool, key=metric)
         if mode == 'Change':
             title = A.verdict([{'change_7d_pct': r['change_pct']} for r in live], WHERE).value
             span = (f'{downs} dropping, {ups} rising, {len(live) - downs - ups} steady over the '
                     f'{window} day{"s" if window > 1 else ""} ending {end_label}.')
-            ends = f'Biggest drop: {lo["gauge"]}, {fmt(metric(lo))}. Biggest rise: {hi["gauge"]}, {fmt(metric(hi))}.'
+            ends = f'Biggest drop{on_key}: {lo["gauge"]}, {fmt(metric(lo))}. Biggest rise{on_key}: {hi["gauge"]}, {fmt(metric(hi))}.'
         else:
             title = f'{gauges(downs)} below normal, {ups} above'
             span = f'On {end_label}.'
-            ends = f'Lowest: {lo["gauge"]}, {fmt(metric(lo))}. Highest: {hi["gauge"]}, {fmt(metric(hi))}.'
+            ends = f'Lowest{on_key}: {lo["gauge"]}, {fmt(metric(lo))}. Highest{on_key}: {hi["gauge"]}, {fmt(metric(hi))}.'
         sub = f'{span} {ends} {len(live)} of {len(order)} gauges have a usable reading.'
     else:
         title = 'No readings near this date'
@@ -410,14 +407,14 @@ if page.endswith('Map'):
 
     # ---- legend: what is measured, over what window, and what each state means
     if mode == 'Change':
-        what = (f'<b>Change in daily mean flow</b> over the <b>{window} day{"s" if window > 1 else ""}</b> '
+        what = (f'<b>Change in flow</b> over the <b>{window} day{"s" if window > 1 else ""}</b> '
                 f'ending <b>{end_label}</b>.')
         ticks = ['-50%', '-25%', '0', '+25%', '+50%']
         keys = [('▼', T.diverging_color(0), 'Dropping 5% or more'), ('●', T.diverging_color(.5), 'Within 5%'),
                 ('▲', T.diverging_color(1), 'Rising 5% or more'), ('○', T.STONE, 'No reading near this date')]
     else:
-        what = (f'<b>Flow vs normal</b> on <b>{end_label}</b>: daily mean as a percent of the median '
-                f'for that date in other years.')
+        what = (f'<b>Flow vs normal</b> on <b>{end_label}</b>: percent of the usual flow '
+                f'for that date.')
         ticks = ['50%', '71%', '100%', '141%', '200%']
         keys = [('▼', T.diverging_color(0), 'Below 90% of normal'), ('●', T.diverging_color(.5), '90 to 110%'),
                 ('▲', T.diverging_color(1), 'Above 110% of normal'), ('○', T.STONE, 'No reading or no normal yet')]
@@ -631,8 +628,8 @@ elif page.endswith('Today'):
     rows = cc.value if order else []       # an empty list means "every gauge" to current_conditions
     recent = [r for r in rows if pd.Timestamp(r['date']) >= LAST - pd.Timedelta(days=3)]
     T.masthead(WHERE, A.verdict(recent, WHERE).value,
-               f'Daily mean flow through {LAST:%A}, {T.date(LAST)}, next to what is normal for that date. '
-               '"Normal" is the median for the same calendar day across the gauge\'s other years.')
+               f'Flow through {LAST:%A}, {T.date(LAST)}, next to what is normal for this date. '
+               'Normal is the middle value for this date across all years on record.')
     status_line()
     if not rows:
         T.note('No gauges in this region have a recent reading. Seasonal gauges shut off in fall and winter.')
@@ -644,6 +641,7 @@ elif page.endswith('Today'):
     fresh = [r for r in rows if is_current(r)]
     if fresh:
         pool = [r for r in fresh if r['river'] in config.KEY_RIVERS] or fresh
+        what = 'gauge' if pool is fresh else 'key river'
         near = [r for r in pool if r['pct_of_median'] is not None]
         hi = max(near, key=lambda r: r['pct_of_median']) if near else None
         lo = min(near, key=lambda r: r['pct_of_median']) if near else None
@@ -654,9 +652,9 @@ elif page.endswith('Today'):
         T.stats([
             (gg['gauge'], f"{gg['flow_cfs']:,.0f} cfs",
              '' if gg['pct_of_median'] is None else f"{gg['pct_of_median']:.0f}% of normal"),
-            ('Highest vs normal', pm(hi), hi['gauge'] if hi else 'no normal yet'),
-            ('Lowest vs normal', pm(lo), lo['gauge'] if lo else 'no normal yet'),
-            ('Warmest water', f"{warm['water_temp_max_f']:.0f}°F" if warm else '–',
+            (f'Highest {what} vs normal', pm(hi), hi['gauge'] if hi else 'no normal yet'),
+            (f'Lowest {what} vs normal', pm(lo), lo['gauge'] if lo else 'no normal yet'),
+            (f'Warmest {what}', f"{warm['water_temp_max_f']:.0f}°F" if warm else '–',
              warm['gauge'] if warm else 'no recent sensor reading'),
         ])
     else:
@@ -729,7 +727,7 @@ elif page.endswith('Today'):
         st.caption(f'{len(shaky)} gauge(s) have fewer than {A.MIN_NORMAL_YEARS} other years on record, so their '
                    '"normal" is rough.')
     st.caption('Percent of normal is '
-               f'left blank where normal flow is under {A.MIN_CHANGE_CFS:g} cfs. Warmest water leaves out '
+               f'left blank where normal flow is under {A.MIN_CHANGE_CFS:g} cfs. The warmest reading leaves out '
                + ' and '.join(config.THERMAL.values()) + '.')
 
     T.section('This water year against the record')
@@ -746,14 +744,14 @@ elif page.endswith('Today'):
         wy_show = wy
     st.plotly_chart(hydrograph(pick, wy_show), width='stretch', config={'displayModeBar': False})
     st.markdown('<div class="rr-cap">Bands show where flows usually sit on each date in every other water '
-                'year at this gauge. Dotted line is the median.</div>', unsafe_allow_html=True)
+                'year at this gauge. Dotted line is normal.</div>', unsafe_allow_html=True)
 
 # ---------------- 2 History ----------------
 
 elif page.endswith('History'):
     T.masthead('History', 'Runoff, peaks and the long view',
                'When each river peaks, what a normal month looks like, and how any stretch of days ranks '
-               'against every earlier year at that gauge.')
+               'against the last 10 years at that gauge.')
     status_line()
     if not order:
         T.note('No gauges in this region.')
@@ -771,7 +769,7 @@ elif page.endswith('History'):
     big = full.loc[full['peak_cfs'].idxmax()] if len(full) else None
     T.stats([
         ('Years of record', f'{len(full)}', f"full water years since {int(p['water_year'].min())}"),
-        ('Median peak date', tr.value['median_peak_date'] if not tr.error else '–', 'daily mean peak'),
+        ('Typical peak date', tr.value['median_peak_date'] if not tr.error else '–', 'across all years'),
         ('Biggest peak', T.cfs(big['peak_cfs']) + ' cfs' if big is not None else '–',
          T.date(big['peak_date']) if big is not None else 'no full years yet'),
         ('Timing trend', f"{tr.value['days_per_decade']:+.1f} d/decade" if not tr.error else '–',
@@ -804,11 +802,11 @@ elif page.endswith('History'):
         m = m.set_index('month').reindex(mo).reset_index()
         fig = go.Figure(go.Bar(x=m['month'], y=m['median_cfs'], marker_color=T.RIVER_LIGHT,
                                text=m['median_cfs'].map(lambda v: f'{v:,.0f}'), textposition='outside',
-                               hovertemplate='%{x}: %{y:,.0f} cfs median<extra></extra>'))
+                               hovertemplate='%{x}: %{y:,.0f} cfs normal<extra></extra>'))
         fig.update_layout(height=300, yaxis_title='Median flow (cfs)', margin=dict(t=24))
         st.plotly_chart(fig, width='stretch', config={'displayModeBar': False})
     with c2:
-        T.section('Any window vs every earlier year')
+        T.section('Any window vs the last 10 years')
         g = A._gauge(df, pick)
         lo_d, hi_d = g['date'].min().date(), LAST.date()
         last_30 = (clamp((LAST - pd.Timedelta(days=29)).date(), lo_d, hi_d), hi_d)
@@ -827,7 +825,7 @@ elif page.endswith('History'):
             else:
                 v = r.value
                 T.stats([('Window mean', T.cfs(v['window_mean_cfs']), 'cfs'),
-                         ('Normal', T.cfs(v['median_of_other_years_cfs']), 'cfs median'),
+                         ('Normal', T.cfs(v['median_of_other_years_cfs']), 'cfs'),
                          ('Percent', '–' if v['pct_of_median'] is None else f"{v['pct_of_median']:.0f}%", 'of normal'),
                          ('Rank', v['rank'].split(' (')[0], '1 = highest flow')])
                 for c in r.caveats:
@@ -953,7 +951,7 @@ elif page.endswith('Ask'):
 else:
     T.masthead('Data', 'Where the numbers come from',
                f'USGS daily values for {df["site_no"].nunique()} gauges from water '
-               'year 2022 on. Normal for the date uses every year from 2001. A reading is the mean flow for one whole day, so the newest one is usually yesterday.')
+               'the last 10 years. Normal for the date uses every year from 2001. A reading is the mean flow for one whole day, so the newest one is usually yesterday.')
     status_line()
     T.stats([('Daily rows', f'{len(df):,}', 'one per gauge per day'),
              ('Gauges', str(df['site_no'].nunique()), f"{len(recent_temp)} with recent water temp"),

@@ -23,10 +23,33 @@ def test_known_values(real):
 def test_normal_still_uses_every_year(real):
     df, _ = real
     n = A.daily_normals(A._gauge(df, '06192500'), 2026)
-    assert n.loc['06-13', 'years'] > 20        # far more than the 5 years of daily rows kept
+    assert n.loc['06-13', 'years'] > 20        # far more than the 10 years of daily rows kept
 
 
-def test_runoff_trend_survives_the_trim(real):
+def test_uploaded_data_gets_its_own_normal(real):
     df, _ = real
-    r = A.runoff_timing_trend(df, '06192500')
-    assert not r.error and r.value['years'] > 20
+    g = A._gauge(df, '06192500').assign(uploaded=True, flow_cfs=lambda d: d['flow_cfs'] * 10)
+    assert A.daily_normals(g, 2026).loc['06-13', 'median'] > 5 * A.daily_normals(A._gauge(df, '06192500'), 2026).loc['06-13', 'median']
+
+
+def test_peaks_reach_past_the_kept_years(real):
+    df, _ = real
+    peaks = {p['water_year']: p for p in A.annual_peaks(df, '06192500').value}
+    assert min(peaks) <= 2002 and len(peaks) > 20
+    assert peaks[2022]['peak_cfs'] == 43000
+    assert peaks[2016]['days_with_data'] >= A.FULL_YEAR_DAYS      # first kept year is whole, from the saved table
+    assert A.annual_peaks(df, '06192500', [2011]).value[0]['water_year'] == 2011
+
+
+def test_runoff_trend_works_by_number_and_by_name(real):
+    df, _ = real
+    label = A._gauge(df, '06192500')['label'].iloc[0]
+    for site in ('06192500', label):
+        r = A.runoff_timing_trend(df, site)
+        assert not r.error and r.value['years'] > 20
+
+
+def test_no_stub_year_on_the_water_temp_chart(real):
+    df, _ = real
+    rows = {r['year']: r for r in A.hot_water_by_year(df, '06052500').value}
+    assert rows[2021]['days_at_or_above'] == 38

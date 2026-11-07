@@ -34,8 +34,7 @@ the Yellowstone Park gauges. A region picker at the top filters every page:
 
 The full list is `data/sites.csv`. Some gauges are seasonal and go quiet in winter.
 
-Daily mean discharge (cfs) plus daily mean and max water temperature from water year 2022
-(Oct 1, 2021). Normals and yearly peaks in `data/normals.csv.gz` and `data/peaks.csv.gz` use
+Daily mean discharge (cfs) plus daily mean and max water temperature from January 2016. Normals and yearly peaks in `data/normals.csv.gz` and `data/peaks.csv.gz` use
 every year from water year 2001.
 
 ## Design

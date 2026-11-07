@@ -21,9 +21,10 @@ g = d[d.site_no == '06043500'].copy()
 g['md'] = g.date.dt.strftime('%m-%d')
 g['wy'] = g.date.dt.year + (g.date.dt.month >= 10)
 today = g.iloc[-1]
-hist = g[(g.md == today.md) & (g.wy != today.wy)]['flow_cfs']
+n = pd.read_csv('data/normals.csv.gz', dtype={'site_no': str})     # all years, saved before the daily file was cut
+n = n[(n.site_no == '06043500') & (n.md == today.md)].iloc[0]
 print(f'\nGallatin nr Gateway {today.date.date()}: {today.flow_cfs:.0f} cfs, median for {today.md} '
-      f'over {hist.size} other years = {hist.median():.0f}, {today.flow_cfs / hist.median() * 100:.0f}% of median')
+      f'over {n.years:.0f} years = {n["median"]:.0f}, {today.flow_cfs / n["median"] * 100:.0f}% of median')
 
 l = d[(d.site_no == '06052500') & (d.date.dt.year == 2021)]
 print(f'Gallatin at Logan 2021 days with max temp >= 73F: {int((l.temp_max_c * 9 / 5 + 32 >= 73).sum())}')

@@ -18,7 +18,7 @@ REGION_VIEW = {
     'Western': (47.3, -113.6, 6.2), 'Central': (47.3, -110.6, 6.0), 'Eastern': (46.9, -106.6, 5.8),
 }
 
-START_DATE = '2021-10-01'   # start of water year 2022: five full years of daily data
+START_DATE = '2016-01-01'   # ten full calendar years of daily data
 
 # (USGS parameter code, statistic code) -> our column name
 PARAMS = {

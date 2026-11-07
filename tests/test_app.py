@@ -48,12 +48,11 @@ def test_date_outside_new_data_is_pulled_back_in_range():
     assert not at.exception
 
 
-def test_data_note_link_opens_the_issues_section():
-    at = AppTest.from_file(APP, default_timeout=120).run()
-    at.button(key='to_data').click().run()
-    assert at.radio(key='more').value == 'Data' and not at.exception
-    text = ' '.join(m.value for m in at.markdown)
-    assert 'Data issues found' in text and 'negative flow' in text and 'no flow reading' in text
+def test_more_tab_remembers_its_section(app):
+    go(app, 'Ask')
+    app.radio(key='page').set_value('Map').run()
+    app.radio(key='page').set_value('More').run()
+    assert app.radio(key='more').value == 'Ask'
 
 
 def test_tab_open_across_a_deploy_gets_the_recent_file():

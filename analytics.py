@@ -103,6 +103,7 @@ def _by_site(name: str, index=None) -> dict:
 
 NORMALS = _by_site('normals.csv.gz', 'md')    # all years, so normal stays strong with 10 years of daily rows
 PEAKS = _by_site('peaks.csv.gz')
+SEASONS = pd.read_csv(_DATA / 'seasons.csv', dtype=str) if (_DATA / 'seasons.csv').exists() else pd.DataFrame()
 
 
 def _saved(g, table):
@@ -216,6 +217,8 @@ def _flow_note(pct):
 def _temp_note(temp):
     if temp is not None and temp >= config.HOOT_OWL_F:
         return f'Water at {temp:.0f}°F, at or above the {config.HOOT_OWL_F:.0f}°F line.'
+    if temp is not None and temp >= 70:
+        return f"Water at {temp:.0f}°F. Trout can live with that a while, but they won't eat."
     if temp is not None and temp >= config.HOOT_OWL_F - 5:
         return f'Water at {temp:.0f}°F, close to the {config.HOOT_OWL_F:.0f}°F line.'
     return ''
@@ -242,9 +245,21 @@ def river_summary(rows: list) -> ToolResult:
         return ToolResult('river_summary', 'No reading in the last 3 days.', definition)
     flow = {_flow_note(r.get('pct_of_median')) for r in rows} - {''}
     temps = [t for t in map(_river_temp, rows) if t is not None]
-    bits = [flow.pop() if len(flow) == 1 else ('Mixed for the date: gauges differ.' if flow else 'No normal for the date.'),
+    bits = [flow.pop() if len(flow) == 1 else ('Depends which stretch you fish.' if flow else 'No normal for the date.'),
             _temp_note(max(temps) if temps else None)]
     return ToolResult('river_summary', ' '.join(x for x in bits if x), definition, rows[0].get('river', ''), len(rows))
+
+
+def season(date, state='MT') -> ToolResult:
+    """The angler's season for a date, from data/seasons.csv. Dates are rough and vary by year."""
+    definition = 'Rough season dates. Timing shifts by river and by year.'
+    md = pd.Timestamp(date).strftime('%m-%d')
+    rows = SEASONS[SEASONS['state'] == state] if len(SEASONS) else SEASONS
+    for r in rows.to_dict('records'):
+        wraps = r['start'] > r['end']       # winter runs across New Year
+        if (md >= r['start'] or md <= r['end']) if wraps else r['start'] <= md <= r['end']:
+            return ToolResult('season', {'name': r['season'], 'expect': r['what_to_expect']}, definition, state, 1)
+    return ToolResult('season', error=f'No season on file for {state} on {md}.')
 
 
 def verdict(rows: list, where: str) -> ToolResult:

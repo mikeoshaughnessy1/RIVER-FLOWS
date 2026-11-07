@@ -57,6 +57,17 @@ REFRESH_DAYS = 120
 KEY_RIVERS = ['Yellowstone', 'Madison', 'Missouri', 'Gallatin', 'Jefferson', 'Bighorn', 'Big Hole',
               'Beaverhead', 'Bitterroot', 'Blackfoot', 'Clark Fork', 'Kootenai']
 
+# Dam release rivers run steadier and clearer than freestones. Every other key river is a freestone.
+DAM_RELEASE = {'Madison', 'Missouri', 'Bighorn', 'Beaverhead', 'Kootenai'}
+
+# Trout and water temperature, from the Fly Fishers International intro guide:
+# (from °F, to °F, short name, what it means). 73°F is the FWP line, HOOT_OWL_F below.
+TROUT_TEMPS = [(32, 45, 'Cold', 'Trout hold in slower, deeper water.'),
+               (45, 59, 'Warming up', 'As the water warms, so does their appetite.'),
+               (59, 65, 'Best', 'Trout grow and feed hardest here.'),
+               (65, 70, 'Warm', 'Oxygen thins out in the upper 60s.'),
+               (70, 100, 'Too warm', "They'll live a while, but they won't eat.")]
+
 # When someone names only a river, use this gauge (and say so in the answer's scope)
 DEFAULT_GAUGE = {
     'gallatin': '06043500', 'madison': '06040000', 'yellowstone': '06192500',

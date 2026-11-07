@@ -130,6 +130,11 @@ header[data-testid=stHeader] {{ background: transparent; height: 0; }}
 .rr-sym {{ display: inline-block; width: 1.1rem; text-align: center; font-weight: 700; }}
 .rr-spark {{ display: block; width: 100%; height: 44px; margin: .5rem 0 .15rem; }}
 .rr-sparkcap {{ color: {MUTED}; font-size: .72rem; margin-bottom: .4rem; }}
+.rr-tag {{ font: 500 .68rem 'Inter', sans-serif; color: {MUTED}; border: 1px solid {RULE}; border-radius: 999px; padding: .05rem .45rem; margin-left: .45rem; vertical-align: middle; }}
+.rr-tempguide {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .4rem; margin: .4rem 0 1rem; }}
+.rr-tempguide div {{ background: {SURFACE}; border: 1px solid {RULE}; border-top: 4px solid var(--c); border-radius: {RADIUS}; padding: .5rem .65rem; font-size: .8rem; color: {INK2}; }}
+.rr-tempguide div.now {{ outline: 2px solid {INK}; }}
+.rr-tempguide b {{ display: block; color: {INK}; font-size: .9rem; }}
 .rr-trend {{ color: {MUTED}; font-weight: 700; }}
 .rr-rcard .line span:last-child {{ white-space: nowrap; flex: none; }}
 .rr-card {{ background: {SURFACE}; border: 1px solid {RULE}; border-radius: {RADIUS}; padding: .8rem .95rem; margin: .4rem 0 .6rem; }}
@@ -278,7 +283,8 @@ def river_cards(cards):
     for c in cards:
         lines = ''.join(f'<div class="line"><span>{esc(g)}</span><span><b>{esc(f)}</b> {extra}</span></div>'
                         for g, f, extra in c['lines'])
-        body += (f'<div class="rr-rcard"><div class="name">{esc(c["name"])}</div><div class="say">{esc(c["say"])}</div>'
+        tag = f'<span class="rr-tag">{esc(c["tag"])}</span>' if c.get('tag') else ''
+        body += (f'<div class="rr-rcard"><div class="name">{esc(c["name"])}{tag}</div><div class="say">{esc(c["say"])}</div>'
                  f'{c.get("spark", "")}{lines}</div>')
     st.markdown(f'<div class="rr-rcards">{body}</div>', unsafe_allow_html=True)
 
@@ -298,6 +304,18 @@ def sparkline(flows, normals, gauge):
             f'<polyline points="{path(normals)}" fill="none" stroke="{MUTED}" stroke-width="1.25" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/>'
             f'<polyline points="{path(flows)}" fill="none" stroke="{PINE}" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>'
             f'</svg><div class="rr-sparkcap">30 days at {esc(gauge)}. Dashed is normal.</div>')
+
+
+def temp_guide(bands, now=None):
+    """What each water temperature means for trout, with the band `now` falls in outlined."""
+    colors = ['#5b8fa8', '#7fb3a6', PINE, '#d9a441', '#b4532a']
+    body = ''
+    for (lo, hi, name, says), c in zip(bands, colors):
+        here = now is not None and lo <= now < hi
+        span = f'Under {hi}°F' if lo == 32 else f'{lo}°F and up' if hi == 100 else f'{lo} to {hi - 1}°F'
+        body += (f'<div class="{"now" if here else ""}" style="--c:{c}"><b>{esc(name)}</b>{span}'
+                 f'{f" · now {now:.0f}°F" if here else ""}<br>{esc(says)}</div>')
+    st.markdown(f'<div class="rr-tempguide">{body}</div>', unsafe_allow_html=True)
 
 
 def group(text):

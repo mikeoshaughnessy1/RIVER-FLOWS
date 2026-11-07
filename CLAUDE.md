@@ -10,4 +10,5 @@
   retires by Feb 2027). The history snapshot was pulled once from legacy in Nov 2026.
   Keys live in Streamlit secrets, never in the repo.
 - Large table: never filter `df[df.site_no == x]` in a loop; use `analytics._gauge(df, x)`.
-- Writing in the app and docs: plain words, short sentences, no em dashes.
+- Writing in the app and docs: plain words, short sentences, no em dashes. Angler voice: dry,
+  specific and matter-of-fact, one understated aside at most, no hype or exclamation marks.

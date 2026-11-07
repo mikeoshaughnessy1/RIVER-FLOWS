@@ -11,6 +11,10 @@ Goal: a free public river report for anglers in Montana, Idaho, Colorado and Wyo
 - Flow never means "good fishing". The app shows the water. The reader makes the call.
 - Plain words. Technical detail stays out of the main pages.
 
+## Fishing knowledge and voice
+- Fishing facts follow the Fly Fishers International intro guide: 59 to 64°F is best for trout, oxygen drops in the upper 60s, over 70°F they don't feed, under 45°F they hold deep and slow. Stained water pushes fish toward the bank. Freestone, tailwater and spring fed are the three river types.
+- Voice follows old fishing writing like the FlyLife tribute to Lefty Kreh: dry, plain, specific. Trust the reader. Don't copy its lines.
+
 ## Keeping the site light
 - Target about 40 gauges per state.
 - The app loads one state at a time, so adding a state doesn't add memory for each visitor.

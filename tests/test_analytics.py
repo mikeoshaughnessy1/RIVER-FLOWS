@@ -232,7 +232,7 @@ def test_river_note_leaves_hot_springs_out_of_the_temp_line():
 
 def test_river_summary_says_mixed_when_gauges_disagree():
     rows = [{'pct_of_median': 66}, {'pct_of_median': 76}, {'pct_of_median': 420}]
-    assert A.river_summary(rows).value == 'Mixed for the date: gauges differ.'
+    assert A.river_summary(rows).value == 'Depends which stretch you fish.'
     assert A.river_summary(rows[:1] * 2).value == 'Running low for the date.'
 
 
@@ -275,3 +275,15 @@ def test_verdict(changes, say):
 
 def test_verdict_with_no_change_data():
     assert 'No recent' in A.verdict([], 'Montana').value
+
+
+@pytest.mark.parametrize('date,name', [('2026-11-06', 'Winter midges'), ('2026-01-15', 'Winter midges'),
+                                       ('2026-03-15', 'Before runoff'), ('2026-06-01', 'Runoff'),
+                                       ('2026-08-01', 'Hoppers'), ('2026-10-31', 'Fall streamers')])
+def test_season(date, name):
+    assert A.season(date).value['name'] == name
+
+
+def test_every_day_has_a_season():
+    assert not any(A.season(d).error for d in pd.date_range('2024-01-01', '2024-12-31'))
+

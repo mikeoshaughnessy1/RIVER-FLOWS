@@ -213,7 +213,7 @@ def region_csv(key, region):
     return keep[config.DAILY_COLUMNS].to_csv(index=False)
 
 
-def pick_default(options, preferred='06043500'):
+def pick_default(options, preferred='06192500'):
     return options.index(preferred) if preferred in options else 0
 
 
@@ -239,6 +239,8 @@ AGE_DAYS = int((TODAY - LAST).days)
 STALE = AGE_DAYS > 3
 recent_flow = set(df.loc[(df['date'] > LAST - pd.Timedelta(days=4)) & df['flow_cfs'].notna(), 'site_no'].unique())
 WHERE = 'Montana and Yellowstone' if region == 'All Montana' else region
+SEASON = A.season(LAST).value
+kicker = f'{WHERE} · {SEASON["name"]}' if SEASON else WHERE
 
 
 def status_line():
@@ -278,6 +280,15 @@ def hydrograph(site, wy, height=330):
         fig.add_annotation(text='No readings this water year', showarrow=False, xref='paper', yref='paper',
                            x=.5, y=.5, font=dict(color=T.MUTED))
     return fig
+
+
+def peak_shift(tr):
+    if tr.error:
+        return '–'
+    if tr.value['r_squared'] < .2:      # weather swamps the line, so don't report a slope
+        return 'No clear shift'
+    d = tr.value['days_per_decade']
+    return f'{abs(d):.0f} days {"earlier" if d < 0 else "later"} a decade'
 
 
 def trend(ch):
@@ -403,7 +414,7 @@ if page.endswith('Map'):
         title = 'No readings near this date'
         sub = 'Seasonal gauges shut off in fall and winter. Try a date in spring or summer, or another region.'
     with head:
-        T.masthead(WHERE + (' · past date' if historical else ''), title, sub)
+        T.masthead((WHERE + ' · past date') if historical else kicker, title, sub)
 
     # ---- legend: what is measured, over what window, and what each state means
     if mode == 'Change':
@@ -627,8 +638,8 @@ elif page.endswith('Today'):
     cc = conditions_cached(DATA_KEY, tuple(order))
     rows = cc.value if order else []       # an empty list means "every gauge" to current_conditions
     recent = [r for r in rows if pd.Timestamp(r['date']) >= LAST - pd.Timedelta(days=3)]
-    T.masthead(WHERE, A.verdict(recent, WHERE).value,
-               f'Flow through {LAST:%A}, {T.date(LAST)}, next to what is normal for this date. '
+    T.masthead(kicker, A.verdict(recent, WHERE).value,
+               (f'{SEASON["expect"]} ' if SEASON else '') + f'Flow through {LAST:%A}, {T.date(LAST)}, next to what is normal for this date. '
                'Normal is the middle value for this date across all years on record.')
     status_line()
     if not rows:
@@ -682,6 +693,7 @@ elif page.endswith('Today'):
     def cards(rivers, sparks=False):
         T.river_cards([{
             'name': river,
+            'tag': ('Dam release' if river in config.DAM_RELEASE else 'Freestone') if sparks else '',
             'spark': spark(river, gs) if sparks else '',
             'say': A.river_summary([g for g in gs if is_current(g)]).value,
             'lines': [(g['gauge'], T.cfs(g['flow_cfs']) + ' cfs',
@@ -772,9 +784,7 @@ elif page.endswith('History'):
         ('Typical peak date', tr.value['median_peak_date'] if not tr.error else '–', 'across all years'),
         ('Biggest peak', T.cfs(big['peak_cfs']) + ' cfs' if big is not None else '–',
          T.date(big['peak_date']) if big is not None else 'no full years yet'),
-        ('Timing trend', f"{tr.value['days_per_decade']:+.1f} d/decade" if not tr.error else '–',
-         f"R² {tr.value['r_squared']:.2f}, mostly noise" if not tr.error and tr.value['r_squared'] < .2 else
-         (f"R² {tr.value['r_squared']:.2f}" if not tr.error else 'needs 8 full years')),
+        ('Peak timing', peak_shift(tr), 'over the years on record' if not tr.error else 'needs 8 full years'),
     ])
     if 'Madison' in labels[pick]:
         st.caption('The Madison is dam-regulated (Hebgen and Ennis), so its runoff is partly managed.')
@@ -834,7 +844,7 @@ elif page.endswith('History'):
 # ---------------- 3 Water temp ----------------
 
 elif page.endswith('Water temp'):
-    T.masthead('Water temperature', 'Hot water and the 73°F line',
+    T.masthead('Water temperature', 'Water temperature and trout',
                'Montana FWP watches for daily max water temps at or above 73°F three days running when '
                'deciding hoot-owl restrictions. This page shows that pattern; FWP makes the call.')
     status_line()
@@ -846,6 +856,9 @@ elif page.endswith('Water temp'):
     default('temp_gauge', with_temp[pick_default(with_temp, '06052500')])
     pick = st.selectbox('Gauge (only gauges with a recent temperature sensor)', with_temp,
                         format_func=labels.get, key='temp_gauge')
+    g0 = A._gauge(df, pick)
+    latest = g0.loc[g0['date'] >= LAST - pd.Timedelta(days=3), 'temp_max_f'].dropna()
+    T.temp_guide(config.TROUT_TEMPS, float(latest.iloc[-1]) if len(latest) else None)
     by = A.hot_water_by_year(df, pick)
     if by.error:
         T.note(by.error, error=True)
@@ -888,6 +901,8 @@ elif page.endswith('Water temp'):
                                  line=dict(color=T.RIVER_LIGHT, width=1.4)))
         fig.add_trace(go.Scatter(x=g['date'], y=g['temp_max_f'], name='Daily max',
                                  line=dict(color=T.HOT, width=1.8)))
+        fig.add_hrect(y0=59, y1=64, fillcolor=T.RIVER_LIGHT, opacity=.18, line_width=0, layer='below',
+                      annotation_text='Best for trout, 59 to 64°F', annotation_position='top left')
         fig.add_hline(y=config.HOOT_OWL_F, line=dict(color=T.INK, width=1, dash='dash'),
                       annotation_text='73°F', annotation_position='top left')
         fig.update_layout(height=320, yaxis_title='Water temperature (°F)', hovermode='x unified')
@@ -950,7 +965,7 @@ elif page.endswith('Ask'):
 
 else:
     T.masthead('Data', 'Where the numbers come from',
-               f'USGS daily values for {df["site_no"].nunique()} gauges from water '
+               f'USGS daily values for {df["site_no"].nunique()} gauges over '
                'the last 10 years. Normal for the date uses every year from 2001. A reading is the mean flow for one whole day, so the newest one is usually yesterday.')
     status_line()
     T.stats([('Daily rows', f'{len(df):,}', 'one per gauge per day'),

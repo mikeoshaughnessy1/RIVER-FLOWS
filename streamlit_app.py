@@ -61,7 +61,7 @@ def reaches():
 def fetch_style():
     r = requests.get(T.STYLE_URL, timeout=4)
     r.raise_for_status()
-    return {**r.json(), 'id': 'positron'}     # without a stable id Plotly reloads the style and drops layers
+    return {**T.with_imagery(r.json()), 'id': 'field'}     # without a stable id Plotly reloads the style and drops layers
 
 
 def basemap():
@@ -72,9 +72,9 @@ def basemap():
 
 
 @st.cache_data(show_spinner=False)
-def fishing_access():
-    p = ROOT / 'data' / 'fishing_access.csv'
-    return pd.read_csv(p) if p.exists() else pd.DataFrame(columns=['name', 'lat', 'lon'])
+def boat_ramps():
+    p = ROOT / 'data' / 'boat_ramps.csv'
+    return pd.read_csv(p) if p.exists() else pd.DataFrame(columns=['name', 'lat', 'lon', 'boat_fac'])
 
 
 def secret(name):
@@ -138,7 +138,7 @@ elif 'recent_bytes' not in ss:
 
 # Streamlit forgets a widget's value when its page isn't on screen. Re-assigning keeps the
 # map date, window, region and gauge picks when you move between sections and come back.
-PERSIST = ('region', 'map_land', 'map_fas', 'map_mode', 'map_window', 'map_date', 'map_all', 'map_find', 'today_gauge', 'today_wy',
+PERSIST = ('region', 'map_land', 'map_ramps', 'map_mode', 'map_window', 'map_date', 'map_all', 'map_find', 'today_gauge', 'today_wy',
            'hist_gauge', 'hist_win', 'temp_gauge', 'temp_year')
 for _k in PERSIST:
     if _k in ss:
@@ -309,7 +309,7 @@ if page.endswith('Map'):
         with st.container(horizontal=True, gap='medium'):
             land = st.toggle('Public land', key='map_land',
                              help='BLM map of who manages the land. Check boundaries before you rely on them for access.')
-            fas = st.toggle('Fishing access', key='map_fas', help='Montana FWP fishing access sites.')
+            ramps = st.toggle('Boat ramps', key='map_ramps', help='Montana FWP ramps for trailered boats. Check the site before you tow.')
     mode = c1.radio('Color rivers by', ['Change', 'Vs normal'], horizontal=True, key='map_mode',
                     help='Change: percent change in daily flow over the window. Vs normal: flow on the '
                          'end date as a percent of the median for that calendar day in other years.')
@@ -409,8 +409,8 @@ if page.endswith('Map'):
         ticks = ['50%', '71%', '100%', '141%', '200%']
         keys = [('▼', T.DROP, 'Below 90% of normal'), ('●', T.STEADY, '90 to 110%'),
                 ('▲', T.RISE, 'Above 110% of normal'), ('○', T.STONE, 'No reading or no normal yet')]
-    if fas:
-        keys.append(('◆', T.PINE, 'Fishing access'))
+    if ramps:
+        keys.append(('●', T.PINE, 'Boat ramp'))
     hist_note = ' <span class="rr-pill warn">Past date</span>' if historical else ''
 
     # Each stretch of river now has one owner, so draw order doesn't matter and lines can be
@@ -428,6 +428,15 @@ if page.endswith('Map'):
         for part in f['geometry']['coordinates']:
             line[0].extend([p[0] for p in part] + [None])
             line[1].extend([p[1] for p in part] + [None])
+    # A light edge under every river keeps the colors readable on the imagery
+    edges = {}
+    for (_, w), (lon, lat) in batches.items():
+        edge = edges.setdefault(w, ([], []))
+        edge[0].extend(lon)
+        edge[1].extend(lat)
+    for w, (lon, lat) in sorted(edges.items()):
+        fig.add_trace(go.Scattermap(lon=lon, lat=lat, mode='lines', hoverinfo='skip', showlegend=False, below=names_layer,
+                                    line=dict(color='rgba(255,255,255,.6)', width=w + 1.1)))
     # Pale "no reading" lines first, then thin to thick, so the big rivers read on top
     for (t, w), (lon, lat) in sorted(batches.items(), key=lambda kv: (kv[0][0] is not None, kv[0][1])):
         fig.add_trace(go.Scattermap(lon=lon, lat=lat, mode='lines', hoverinfo='skip', showlegend=False, below=names_layer,
@@ -484,7 +493,7 @@ if page.endswith('Map'):
         fig.add_trace(go.Scattermap(lon=[p[0] for p in placed], lat=[p[1] for p in placed], mode='markers+text',
                                     text=[p[2] for p in placed], textposition='top right', hoverinfo='skip',
                                     marker=dict(size=10, opacity=0),
-                                    textfont=dict(size=12.5, color=T.INK), showlegend=False))
+                                    textfont=dict(size=12.5, color=T.INK if style is T.BLANK_MAP else 'white'), showlegend=False))
 
     has_xy = find in site_xy.index
     if find and has_xy:
@@ -503,11 +512,13 @@ if page.endswith('Map'):
                                 text=[tip(s, v) for s, v in zip(mk, vals)], hoverinfo='text', customdata=mk,
                                 unselected=dict(marker=dict(opacity=.01)), selected=dict(marker=dict(opacity=.01)),
                                 showlegend=False))
-    sites_fas = fishing_access() if fas else None
-    if fas and len(sites_fas):
-        fig.add_trace(go.Scattermap(lon=sites_fas['lon'], lat=sites_fas['lat'], mode='markers', showlegend=False,
-                                    marker=dict(size=5, color=T.PINE), hoverinfo='text',
-                                    text='Fishing access: ' + sites_fas['name'].astype(str).map(T.esc)))
+    pts = boat_ramps() if ramps else None
+    if ramps and len(pts):
+        fig.add_trace(go.Scattermap(lon=pts['lon'], lat=pts['lat'], mode='markers', showlegend=False,
+                                    marker=dict(size=11, color='white'), hoverinfo='skip'))
+        fig.add_trace(go.Scattermap(lon=pts['lon'], lat=pts['lat'], mode='markers', showlegend=False,
+                                    marker=dict(size=7, color=T.PINE), hoverinfo='text',
+                                    text=(pts['name'] + ': ' + pts['boat_fac']).astype(str).map(T.esc)))
     fig.update_layout(map=dict(style=T.with_land(style, names_layer) if land else style,
                                center=dict(lat=clat, lon=clon), zoom=zoom),
                       height=440 if PHONE else 680, margin=dict(l=0, r=0, t=0, b=0),
@@ -990,6 +1001,6 @@ else:
                            f"daily_values_{region.lower().replace(' ', '_')}.csv", 'text/csv')
 
 T.colophon('Data: U.S. Geological Survey daily values (NWIS), refreshed through the USGS Water Data API. '
-           'River lines: USGS NHDPlus via NLDI. Basemap: © OpenStreetMap contributors, © CARTO. '
-           'Land: BLM. Fishing access: Montana FWP. '
+           'River lines: USGS NHDPlus via NLDI. Basemap: © OpenStreetMap contributors, © CARTO. Imagery: USGS The National Map. '
+           'Land: BLM. Boat ramps: Montana FWP. '
            'USGS can revise recent values. Not a safety tool; check conditions and FWP rules before you go.')

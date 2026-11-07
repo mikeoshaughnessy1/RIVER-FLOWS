@@ -300,12 +300,35 @@ OFF_SEASON = '#cfc9bc'
 # The map won't start until its style loads, so the app fetches CARTO's style itself and hands
 # it over. A failed tile then only loses the background. BLANK_MAP is for when the style can't load.
 STYLE_URL = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
+IMAGERY_TILES = 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}'
 BLANK_MAP = {'version': 8, 'id': 'blank', 'sources': {}, 'glyphs': 'https://tiles.basemaps.cartocdn.com/fonts/{fontstack}/{range}.pbf',
              'layers': [{'id': 'paper', 'type': 'background', 'paint': {'background-color': '#f6f6f3'}}]}
 
 
 LAND_TILES = ('https://gis.blm.gov/arcgis/rest/services/lands/BLM_Natl_SMA_Cached_without_PriUnk/'
               'MapServer/tile/{z}/{y}/{x}')
+
+
+def with_imagery(style):
+    """The light style with USGS satellite imagery under the roads and names, and clear state lines."""
+    at = next(i for i, x in enumerate(style['layers']) if x['id'] == 'boundary_county')
+    layer = {'id': 'imagery', 'type': 'raster', 'source': 'imagery',
+             'paint': {'raster-saturation': .3, 'raster-brightness-min': .14, 'raster-hue-rotate': 18}}
+    lines = {'line-color': '#ffffff', 'line-width': 1.6, 'line-opacity': .85}
+    names = {'text-color': '#ffffff', 'text-halo-color': 'rgba(0,0,0,.65)', 'text-halo-width': 1.2}
+    top = []
+    for x in style['layers'][at:]:
+        if x['id'] in ('boundary_state', 'boundary_country_inner'):
+            x = {k: v for k, v in {**x, 'paint': lines}.items() if k != 'minzoom'}
+            if x['id'] == 'boundary_state':     # the stock filter hides state lines below zoom 6
+                x['filter'] = ['==', ['get', 'kind_detail'], 4]
+        elif x['type'] == 'symbol':
+            x = {**x, 'paint': {**x.get('paint', {}), **names}}
+        if x['id'] not in ('water', 'water_shadow', 'boundary_county'):
+            top.append(x)
+    return {**style, 'layers': style['layers'][:at] + [layer] + top,
+            'sources': {**style['sources'], 'imagery': {'type': 'raster', 'tiles': [IMAGERY_TILES], 'tileSize': 256,
+                                                        'maxzoom': 16, 'attribution': 'USGS The National Map'}}}
 
 
 def with_land(style, before):

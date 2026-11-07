@@ -24,3 +24,25 @@ def test_chaikin_keeps_end_points_and_rounds_corners():
     line = [(0, 0), (1, 0), (1, 1)]
     out = fr.chaikin(line, 2)
     assert out[0] == line[0] and out[-1] == line[-1] and len(out) > len(line) and (1, 0) not in out
+
+
+def test_boat_ramps_are_trailer_ramps_only():
+    import pandas as pd
+    ramps = pd.read_csv(pathlib.Path(__file__).resolve().parents[1] / 'data' / 'boat_ramps.csv')
+    assert len(ramps) and ramps['boat_fac'].str.contains('Ramp').all()
+    assert not ramps['boat_fac'].str.contains('Primitive|Hand Launch|Raft Slide').any()
+
+
+def test_imagery_sits_under_names_and_shows_state_lines_at_every_zoom():
+    import sys
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+    import theme as T
+    style = {'sources': {}, 'layers': [{'id': 'water', 'type': 'fill'}, {'id': 'boundary_county', 'type': 'line'},
+                                       {'id': 'boundary_state', 'type': 'line', 'minzoom': 4, 'filter': ['any']},
+                                       {'id': 'water_shadow', 'type': 'fill'}, {'id': 'town', 'type': 'symbol'}]}
+    out = T.with_imagery(style)
+    ids = [x['id'] for x in out['layers']]
+    assert 'imagery' in out['sources'] and ids.index('imagery') < ids.index('town')
+    assert 'boundary_county' not in ids and 'water_shadow' not in ids
+    state = next(x for x in out['layers'] if x['id'] == 'boundary_state')
+    assert 'minzoom' not in state and state['filter'] == ['==', ['get', 'kind_detail'], 4]

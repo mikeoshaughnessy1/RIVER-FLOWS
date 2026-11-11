@@ -315,18 +315,19 @@ def _trend(ch):
 
 
 # One line in Lefty Kreh's spirit for each (trend, level). Plain talk, reason first.
+# Written as a conservationist: less water every year, so low or dropping is never cheered.
 LEFTY = {
-    ('dropping', 'low'): "Low water and still dropping. The fish know where the deep water is. You should too.",
-    ('dropping', 'normal'): "The rivers are coming down. That's never been bad news for a fly fisherman.",
+    ('dropping', 'low'): "Low water and still dropping. That's hard on trout. Fish early, land them quick and keep them wet.",
+    ('dropping', 'normal'): "Rivers are easing down, about where they should be for the date. That's a river doing its job.",
     ('dropping', 'high'): "Still big water, but it's falling. Give it a few days and the banks will fish.",
-    ('rising', 'low'): "A little water is coming up on low rivers. Fish don't mind a bump. Anglers usually do.",
+    ('rising', 'low'): "Some water is coming back into low rivers. The trout needed it more than we did.",
     ('rising', 'normal'): "Water's on the rise. Fish move to the edges, so cast there before you cast far.",
     ('rising', 'high'): "Water's high and climbing. The fish are still in there. Getting a fly to them is the hard part.",
-    ('steady', 'low'): "Low, steady water. The fish can see you as well as you can see them, so stay back and fish fine.",
+    ('steady', 'low'): "Low, steady water. Fish are spooky and stressed. Stay back, fish fine and don't play them long.",
     ('steady', 'normal'): "Steady flows, right about normal. The river did its part. The rest is on the angler.",
     ('steady', 'high'): "High but holding steady. Fish the soft water along the banks and quit looking at the middle.",
-    ('mixed', 'low'): "Some rivers up, some down, most of them low. Pick a tailwater and fish it slow.",
-    ('mixed', 'normal'): "Some rivers are up and some are down. Pick the one that's dropping and go fishing.",
+    ('mixed', 'low'): "Some rivers up, some down, most of them low. Go easy on the fish this week.",
+    ('mixed', 'normal'): "Some rivers are up and some are down. Check your river before you make the drive.",
     ('mixed', 'high'): "Some rivers up, some down, most of them high. A dam release river is the safer bet.",
 }
 

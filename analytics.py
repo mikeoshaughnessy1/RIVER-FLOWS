@@ -107,6 +107,7 @@ NORMALS = _by_site('normals.csv.gz', 'md')    # all years, so normal stays stron
 PEAKS = _by_site('peaks.csv.gz')
 HATCHES = pd.read_csv(_DATA / 'hatches.csv', dtype=str) if (_DATA / 'hatches.csv').exists() else pd.DataFrame()
 SEASONS = pd.read_csv(_DATA / 'seasons.csv', dtype=str) if (_DATA / 'seasons.csv').exists() else pd.DataFrame()
+SHOP_FRESH_DAYS = 10    # older shop reports are hidden; conditions move faster than that
 
 
 def _saved(g, table):
@@ -292,6 +293,21 @@ def hatches(date) -> ToolResult:
             for r in HATCHES.to_dict('records')]
     now = [r['insect'] for r in rows if r['levels'][m - 1] >= 2]
     return ToolResult('hatches', {'rows': rows, 'now': now}, 'Rough Rocky Mountain timing, 0 none to 3 peak.', str(m), len(rows))
+
+
+def shop_reports(reports: list, river: str, as_of) -> ToolResult:
+    """Fly shop reports for a river from data/shop_reports.json, newest first. Only reports dated
+    within SHOP_FRESH_DAYS of as_of. The text is the shop's own words, credited and linked."""
+    definition = f'Local fly shop reports from the last {SHOP_FRESH_DAYS} days, in the shop\'s own words.'
+    mine = [r for r in reports if r.get('river') == river]
+    if not mine:
+        return ToolResult('shop_reports', error=f'No fly shop covers {river} yet. Rivers with shops: '
+                          + ', '.join(sorted({r.get('river', '') for r in reports})))
+    today = pd.Timestamp(as_of).tz_localize(None).normalize()
+    fresh = [r for r in mine if 0 <= (today - pd.Timestamp(r['date'])).days <= SHOP_FRESH_DAYS]
+    fresh.sort(key=lambda r: r['date'], reverse=True)
+    caveats = [] if fresh else [f'No {river} report from a shop in the last {SHOP_FRESH_DAYS} days.']
+    return ToolResult('shop_reports', fresh, definition, river, len(fresh), caveats)
 
 
 def verdict(rows: list, where: str) -> ToolResult:

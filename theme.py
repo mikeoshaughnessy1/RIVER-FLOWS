@@ -150,6 +150,14 @@ header[data-testid=stHeader] {{ background: transparent; height: 0; }}
 .rr-rcards {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: .7rem; margin: .5rem 0 1rem; }}
 .rr-rcard {{ background: {SURFACE}; border: 1px solid {RULE}; border-radius: {RADIUS}; padding: .7rem .85rem; }}
 .rr-rcard .name {{ font: 650 1.05rem 'Fraunces', serif; color: {INK}; }}
+.rr-shops {{ border-top: 1px solid {RULE}; margin-top: .5rem; padding-top: .45rem; }}
+.rr-shops .hd {{ font: 600 .68rem 'Inter', sans-serif; letter-spacing: .06em; text-transform: uppercase; color: {MUTED}; }}
+.rr-shop {{ padding: .35rem 0; font-size: .8rem; line-height: 1.4; }}
+.rr-shop .who {{ color: {MUTED}; }}
+.rr-shop .who b {{ color: {INK}; font-weight: 600; }}
+.rr-shop .said {{ color: {INK}; margin: .1rem 0 .15rem; }}
+.rr-shop a, .rr-shopmore summary {{ color: {PINE}; font-size: .78rem; }}
+.rr-shopmore summary {{ cursor: pointer; padding: .2rem 0; }}
 .rr-rcard .say {{ color: {MUTED}; font-size: .8rem; margin: .1rem 0 .4rem; min-height: 1.1rem; }}
 .rr-rcard .line {{ display: flex; justify-content: space-between; gap: .6rem; font-size: .85rem; padding: .22rem 0;
   border-top: 1px solid {RULE}; color: {INK2}; }}
@@ -289,8 +297,23 @@ def river_cards(cards):
                         for g, f, extra in c['lines'])
         tag = f'<span class="rr-tag">{esc(c["tag"])}</span>' if c.get('tag') else ''
         body += (f'<div class="rr-rcard"><div class="name">{esc(c["name"])}{tag}</div><div class="say">{esc(c["say"])}</div>'
-                 f'{c.get("spark", "")}{lines}</div>')
+                 f'{c.get("spark", "")}{lines}{shop_notes(c.get("shops") or [], c["name"])}</div>')
     st.markdown(f'<div class="rr-rcards">{body}</div>', unsafe_allow_html=True)
+
+
+def shop_notes(reports, river, shown=2):
+    """Fly shop reports inside a river card: the newest `shown`, the rest behind a native disclosure."""
+    if not reports:
+        return ''
+    def one(r):
+        where = f' · {esc(r["label"])}' if r['label'] != river else ''
+        return (f'<div class="rr-shop"><div class="who"><b>{esc(r["shop"])}</b>{where} · {esc(date(r["date"], False))}</div>'
+                f'<div class="said">{esc(r["excerpt"])}</div>'
+                f'<a href="{esc(r["url"])}" target="_blank" rel="noopener">Full report at {esc(r["shop"])}</a></div>')
+    more = reports[shown:]
+    extra = (f'<details class="rr-shopmore"><summary>{len(more)} more from the shops</summary>'
+             + ''.join(map(one, more)) + '</details>') if more else ''
+    return f'<div class="rr-shops"><div class="hd">From the fly shops</div>{"".join(map(one, reports[:shown]))}{extra}</div>'
 
 
 def sparkline(flows, normals, gauge):

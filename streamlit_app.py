@@ -109,6 +109,15 @@ def recent_file():
         return b'', None
 
 
+def shop_file():
+    """The daily shop reports. Empty if the file is missing or can't be read."""
+    import json
+    try:
+        return json.loads((ROOT / 'data' / 'shop_reports.json').read_text())['reports']
+    except (OSError, ValueError, KeyError):
+        return []
+
+
 def snapshot_origin():
     got = recent_file()[1]
     if got:
@@ -697,12 +706,14 @@ elif page.endswith('Today'):
             'name': river,
             'tag': ('Dam release' if river in config.DAM_RELEASE else 'Freestone') if sparks else '',
             'spark': spark(river, gs) if sparks else '',
+            'shops': A.shop_reports(SHOPS, river, NOW).value if sparks else None,
             'say': A.river_summary([g for g in gs if is_current(g)]).value,
             'lines': [(g['gauge'], T.cfs(g['flow_cfs']) + ' cfs',
                        trend(g['change_7d_pct']) + pct_label(g['pct_of_median']) if is_current(g) else
                        f'<span class="rr-pill warn">{T.esc(T.date(g["date"], False))}</span>') for g in gs]}
             for river, gs in rivers.items() if gs])
 
+    SHOPS = shop_file()
     T.section('Key rivers', 'The arrow is the last week. The percent is how the river compares to normal '
                             f'for this date: under {A.LOW_PCT}% is low, over {A.HIGH_PCT}% is high.')
     cards(key_rivers, sparks=True)

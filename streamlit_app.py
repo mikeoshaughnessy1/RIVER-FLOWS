@@ -154,7 +154,6 @@ with st.container(key='topbar', horizontal=True, horizontal_alignment='distribut
     T.brand('Rockies River Report')
     region = st.selectbox('Region', ['All Montana'] + config.REGIONS, key='region', width=210,
                           help='Filters the map, gauge lists and download. Ask always sees every gauge.')
-tagline = st.empty()      # filled below: the line needs current conditions
 with st.container(key='nav'):
     page = st.radio('Section', PAGES, key='page', horizontal=True, label_visibility='collapsed')
     if page == 'More':
@@ -245,10 +244,6 @@ SEASON = A.season(NOW).value
 hatch = A.hatches(NOW)
 hatching_line = f'Hatching now: {", ".join(hatch.value["now"])}.' if not hatch.error and hatch.value['now'] else ''
 kicker = ' · '.join(x for x in (WHERE, SEASON['name'] if SEASON else '') if x)
-_line = A.lefty_line([r for r in conditions_cached(DATA_KEY, tuple(order)).value
-                           if pd.Timestamp(r['date']) >= LAST - pd.Timedelta(days=3)])
-if not _line.error:
-    tagline.markdown(f'<div class="rr-tagline">{T.esc(_line.value)}</div>', unsafe_allow_html=True)
 
 
 def status_line():

@@ -48,7 +48,7 @@ a {{ color: {RIVER}; }}
 /* Top bar and section tabs: the same on every screen, nothing hidden behind a drawer */
 header[data-testid=stHeader] {{ background: transparent; height: 0; }}
 .rr-brand {{ font: 650 1.45rem/1.15 'Fraunces', serif; color: {INK}; }}
-.rr-brand-sub {{ color: {MUTED}; font-size: .8rem; }}
+.rr-tagline {{ font: italic 400 1.05rem/1.4 'Fraunces', serif; color: {MUTED}; margin: -.4rem 0 .2rem; max-width: 46rem; }}
 .st-key-nav {{ border-bottom: 1px solid {RULE}; margin-bottom: .5rem; overflow-x: auto; scrollbar-width: none; }}
 .st-key-nav [role=radiogroup] {{ flex-wrap: nowrap; gap: 1.5rem; }}
 .st-key-nav [data-testid=stRadioOption] {{ padding: .4rem 0 .5rem; border-bottom: 2px solid transparent; margin-bottom: -1px;
@@ -179,7 +179,9 @@ header[data-testid=stHeader] {{ background: transparent; height: 0; }}
   .rr-mast .title {{ font-size: 1.7rem; }}
   .rr-table {{ font-size: .84rem; }}
   .st-key-topbar {{ flex-wrap: nowrap !important; align-items: center; }}
-  .st-key-topbar .rr-brand-sub, .st-key-region label {{ display: none; }}
+  .st-key-region label {{ display: none; }}
+  .rr-tagline {{ font-size: .95rem; margin-top: .1rem; }}
+  .st-key-topbar .rr-brand {{ font-size: 1.15rem; white-space: nowrap; }}
   .st-key-region {{ width: 150px !important; flex: 0 0 150px; }}
   .rr-mast .sub {{ font-size: .86rem; }}
   .rr-status > span:nth-child(n+2) {{ display: none; }}
@@ -218,9 +220,8 @@ def masthead(kicker, title, sub):
                 unsafe_allow_html=True)
 
 
-def brand(name, sub):
-    st.markdown(f'<div class="rr-brand">{esc(name)}</div><div class="rr-brand-sub">{esc(sub)}</div>',
-                unsafe_allow_html=True)
+def brand(name):
+    st.markdown(f'<div class="rr-brand">{esc(name)}</div>', unsafe_allow_html=True)
 
 
 def label(text):

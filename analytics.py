@@ -299,12 +299,56 @@ def verdict(rows: list, where: str) -> ToolResult:
     definition = f'Most means over half of gauges with a 7-day change moved more than {STEADY_PCT}% that way.'
     ch = [r['change_7d_pct'] for r in rows if r.get('change_7d_pct') is not None]
     if not ch:
-        return ToolResult('verdict', f'No recent 7-day change for {where}.', definition)
+        return ToolResult('verdict', f'No recent 7-day change for {where or "these rivers"}.', definition)
+    word, n = _trend(ch)
+    rivers = f'{where} rivers' if where else 'rivers'
+    say = f'Most {rivers} are {word}.' if word != 'mixed' else f'{rivers[0].upper() + rivers[1:]} are mixed.'
+    return ToolResult('verdict', say, definition, where, len(ch))
+
+
+def _trend(ch):
+    """(word, count): the way over half the 7-day changes went, else ('mixed', 0)."""
     moves = {'dropping': sum(c < -STEADY_PCT for c in ch), 'rising': sum(c > STEADY_PCT for c in ch)}
     moves['steady'] = len(ch) - moves['dropping'] - moves['rising']
     word, n = max(moves.items(), key=lambda kv: kv[1])
-    say = f'Most {where} rivers are {word}.' if n > len(ch) / 2 else f'{where} rivers are mixed.'
-    return ToolResult('verdict', say, definition, where, len(ch))
+    return (word, n) if n > len(ch) / 2 else ('mixed', 0)
+
+
+# One line in Lefty Kreh's spirit for each (trend, level). Plain talk, reason first.
+LEFTY = {
+    ('dropping', 'low'): "Low water and still dropping. The fish know where the deep water is. You should too.",
+    ('dropping', 'normal'): "The rivers are coming down. That's never been bad news for a fly fisherman.",
+    ('dropping', 'high'): "Still big water, but it's falling. Give it a few days and the banks will fish.",
+    ('rising', 'low'): "A little water is coming up on low rivers. Fish don't mind a bump. Anglers usually do.",
+    ('rising', 'normal'): "Water's on the rise. Fish move to the edges, so cast there before you cast far.",
+    ('rising', 'high'): "Water's high and climbing. The fish are still in there. Getting a fly to them is the hard part.",
+    ('steady', 'low'): "Low, steady water. The fish can see you as well as you can see them, so stay back and fish fine.",
+    ('steady', 'normal'): "Steady flows, right about normal. The river did its part. The rest is on the angler.",
+    ('steady', 'high'): "High but holding steady. Fish the soft water along the banks and quit looking at the middle.",
+    ('mixed', 'low'): "Some rivers up, some down, most of them low. Pick a tailwater and fish it slow.",
+    ('mixed', 'normal'): "Some rivers are up and some are down. Pick the one that's dropping and go fishing.",
+    ('mixed', 'high'): "Some rivers up, some down, most of them high. A dam release river is the safer bet.",
+}
+
+
+def lefty_line(rows: list) -> ToolResult:
+    """A plain-talk line for the masthead from current_conditions rows: trend, level vs normal, water temp."""
+    definition = (f'Trend: over half of gauges moved more than {STEADY_PCT}% in 7 days. Level: over half are '
+                  f'under {LOW_PCT}% (low) or over {HIGH_PCT}% (high) of normal. Temp: median daily high.')
+    ch = [r['change_7d_pct'] for r in rows if r.get('change_7d_pct') is not None]
+    if not ch:
+        return ToolResult('lefty_line', error='No recent 7-day change to talk about.')
+    pct = [r['pct_of_median'] for r in rows if r.get('pct_of_median') is not None]
+    low, high = sum(p < LOW_PCT for p in pct), sum(p > HIGH_PCT for p in pct)
+    level = 'low' if low > len(pct) / 2 else 'high' if high > len(pct) / 2 else 'normal'
+    say = LEFTY[(_trend(ch)[0], level)]
+    temps = sorted(r['water_temp_max_f'] for r in rows if r.get('water_temp_max_f') is not None)
+    t = temps[len(temps) // 2] if temps else None
+    if t is not None and t < 45:      # FFI guide: under 45°F trout go slow and deep
+        say += ' Cold water, too. Slow down and get the fly deep.'
+    elif t is not None and t > 68:    # upper 60s oxygen drops, over 70 they quit feeding
+        say += " Warm water, too. Fish the morning and let them be by afternoon."
+    return ToolResult('lefty_line', say, definition, None, len(ch))
 
 
 def flow_stats(df, site, start=None, end=None) -> ToolResult:

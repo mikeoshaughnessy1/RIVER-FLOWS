@@ -309,3 +309,24 @@ def test_river_note_flags_a_fast_rise():
 def test_move_note(row, say):
     assert A._move_note([{'gauge': 'A', **row}]) == say
 
+
+
+def test_verdict_without_a_place_name():
+    assert A.verdict([{'change_7d_pct': c} for c in (-20, -10, 1)], '').value == 'Most rivers are dropping.'
+    assert A.verdict([{'change_7d_pct': c} for c in (20, -20, 1)], '').value == 'Rivers are mixed.'
+
+
+@pytest.mark.parametrize('rows,starts,tail', [
+    ([{'change_7d_pct': -20, 'pct_of_median': 60}] * 3, 'Low water and still dropping.', None),
+    ([{'change_7d_pct': 1, 'pct_of_median': 100, 'water_temp_max_f': 40}] * 3, 'Steady flows', 'Cold water'),
+    ([{'change_7d_pct': 20, 'pct_of_median': 200, 'water_temp_max_f': 72}] * 3, "Water's high and climbing.", 'Warm water'),
+])
+def test_lefty_line(rows, starts, tail):
+    say = A.lefty_line(rows).value
+    assert say.startswith(starts)
+    assert (tail in say) if tail else ('water, too' not in say)
+    assert '!' not in say and '—' not in say
+
+
+def test_lefty_line_with_no_change_data():
+    assert A.lefty_line([]).error

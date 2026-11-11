@@ -151,9 +151,10 @@ for _k in PERSIST:
 # ---------------- top bar ----------------
 
 with st.container(key='topbar', horizontal=True, horizontal_alignment='distribute', vertical_alignment='bottom'):
-    T.brand('Rockies River Report', 'Montana & Yellowstone field report from USGS gauges')
+    T.brand('Rockies River Report')
     region = st.selectbox('Region', ['All Montana'] + config.REGIONS, key='region', width=210,
                           help='Filters the map, gauge lists and download. Ask always sees every gauge.')
+tagline = st.empty()      # filled below: the line needs current conditions
 with st.container(key='nav'):
     page = st.radio('Section', PAGES, key='page', horizontal=True, label_visibility='collapsed')
     if page == 'More':
@@ -238,12 +239,16 @@ TODAY = pd.Timestamp.now(tz='America/Denver').tz_localize(None).normalize()
 AGE_DAYS = int((TODAY - LAST).days)
 STALE = AGE_DAYS > 3
 recent_flow = set(df.loc[(df['date'] > LAST - pd.Timedelta(days=4)) & df['flow_cfs'].notna(), 'site_no'].unique())
-WHERE = 'Montana and Yellowstone' if region == 'All Montana' else region
+WHERE = '' if region == 'All Montana' else region      # the whole map needs no name
 NOW = pd.Timestamp.now(tz='America/Denver')      # seasons follow the calendar, even if the data is old
 SEASON = A.season(NOW).value
 hatch = A.hatches(NOW)
 hatching_line = f'Hatching now: {", ".join(hatch.value["now"])}.' if not hatch.error and hatch.value['now'] else ''
-kicker = f'{WHERE} · {SEASON["name"]}' if SEASON else WHERE
+kicker = ' · '.join(x for x in (WHERE, SEASON['name'] if SEASON else '') if x)
+_line = A.lefty_line([r for r in conditions_cached(DATA_KEY, tuple(order)).value
+                           if pd.Timestamp(r['date']) >= LAST - pd.Timedelta(days=3)])
+if not _line.error:
+    tagline.markdown(f'<div class="rr-tagline">{T.esc(_line.value)}</div>', unsafe_allow_html=True)
 
 
 def status_line():
@@ -419,7 +424,7 @@ if page.endswith('Map'):
         title = 'No readings near this date'
         sub = 'Seasonal gauges shut off in fall and winter. Try a date in spring or summer, or another region.'
     with head:
-        T.masthead((WHERE + ' · past date') if historical else kicker, title, sub)
+        T.masthead(' · '.join(x for x in (WHERE, 'Past date') if x) if historical else kicker, title, sub)
 
     # ---- legend: what is measured, over what window, and what each state means
     if mode == 'Change':
